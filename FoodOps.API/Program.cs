@@ -1,12 +1,15 @@
-using System.Text;
 using FoodOps.Infrastructure;
 using FoodOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Host.UseSerilog((ctx, lc) => lc
+    .WriteTo.Console()
+    .WriteTo.File("logs/foodops-.log", rollingInterval: RollingInterval.Day));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -53,7 +56,8 @@ builder.Services.AddCors(o => o.AddPolicy("Angular", p =>
     p.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
-
+app.UseMiddleware<FoodOps.API.Middleware.ExceptionMiddleware>();
+app.UseSerilogRequestLogging();
 await DbSeeder.SeedAsync(app.Services);
 
 if (app.Environment.IsDevelopment())

@@ -24,6 +24,9 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<AppDbContext>();
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IRestaurantService, RestaurantService>();
+        services.AddScoped<IMenuService, MenuService>();
+
         return services;
     }
 }
