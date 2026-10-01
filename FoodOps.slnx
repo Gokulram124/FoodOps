@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="FoodOps.API/FoodOps.API.csproj" />
+  <Project Path="FoodOps.Application/FoodOps.Application.csproj" />
+  <Project Path="FoodOps.Domain/FoodOps.Domain.csproj" />
+  <Project Path="FoodOps.Infrastructure/FoodOps.Infrastructure.csproj" />
+</Solution>
