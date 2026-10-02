@@ -9,4 +9,6 @@ public static class ClaimsExtensions
         Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     public static bool IsAdmin(this ClaimsPrincipal user) => user.IsInRole(Roles.Admin);
+    public static string GetRole(this ClaimsPrincipal user) => user.FindFirstValue(ClaimTypes.Role)!;
+    public static string GetFullName(this ClaimsPrincipal user) => user.FindFirstValue(ClaimTypes.Name) ?? "Rider";
 }

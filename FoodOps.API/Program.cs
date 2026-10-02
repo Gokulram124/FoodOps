@@ -10,7 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console()
     .WriteTo.File("logs/foodops-.log", rollingInterval: RollingInterval.Day));
-builder.Services.AddControllers();
+
+
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
