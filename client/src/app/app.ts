@@ -8,40 +8,40 @@ import { ThemeService } from './core/theme.service';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="min-h-screen bg-slate-950 text-slate-100">
-      <header class="flex items-center justify-between border-b border-white/10 px-6 py-4">
-        <div class="flex items-center gap-6">
-          <span class="text-lg font-semibold tracking-tight">Food<span class="text-indigo-400">Ops</span></span>
+    <div class="min-vh-100">
+      <nav class="navbar flex-wrap gap-2 border-bottom px-3 px-md-4 py-3">
+        <div class="d-flex align-items-center gap-4">
+          <span class="navbar-brand fw-semibold m-0">Food<span class="text-primary">Ops</span></span>
 
           @if (auth.role() === 'Customer') {
-            <nav class="flex items-center gap-4 text-sm text-slate-400">
-              <a routerLink="/restaurants" routerLinkActive="text-white" class="hover:text-white">Restaurants</a>
-              <a routerLink="/cart" routerLinkActive="text-white" class="hover:text-white">
-                Cart
-                @if (cart.count() > 0) {
-                  <span class="ml-1 rounded-full bg-indigo-500 px-1.5 text-xs text-white">{{ cart.count() }}</span>
-                }
-              </a>
-              <a routerLink="/orders" routerLinkActive="text-white" class="hover:text-white">My orders</a>
-            </nav>
+            <ul class="nav gap-1">
+              <li class="nav-item"><a routerLink="/restaurants" routerLinkActive="active" class="nav-link py-1 px-2">Restaurants</a></li>
+              <li class="nav-item">
+                <a routerLink="/cart" routerLinkActive="active" class="nav-link py-1 px-2">
+                  Cart
+                  @if (cart.count() > 0) {
+                    <span class="badge rounded-pill text-bg-primary ms-1">{{ cart.count() }}</span>
+                  }
+                </a>
+              </li>
+              <li class="nav-item"><a routerLink="/orders" routerLinkActive="active" class="nav-link py-1 px-2">My orders</a></li>
+            </ul>
           }
         </div>
 
-        <div class="flex items-center gap-4 text-sm">
+        <div class="d-flex align-items-center gap-2 gap-md-3 small">
           <button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.theme() === 'dark' ? 'light' : 'dark') + ' theme'"
-                  class="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10">
+                  class="btn btn-sm btn-outline-secondary">
             {{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}
           </button>
 
           @if (auth.isLoggedIn()) {
-            <span class="text-slate-300">{{ auth.user()?.fullName }}</span>
-            <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">{{ auth.role() }}</span>
-            <button (click)="logout()" class="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10">
-              Logout
-            </button>
+            <span class="text-body-secondary d-none d-sm-inline">{{ auth.user()?.fullName }}</span>
+            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">{{ auth.role() }}</span>
+            <button (click)="logout()" class="btn btn-sm btn-outline-secondary">Logout</button>
           }
         </div>
-      </header>
+      </nav>
 
       <main><router-outlet /></main>
     </div>

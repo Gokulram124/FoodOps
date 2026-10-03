@@ -8,51 +8,45 @@ import { Role } from '../core/models';
   selector: 'app-register',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="flex min-h-[80vh] items-center justify-center px-4">
-      <form [formGroup]="form" (ngSubmit)="submit()"
-            class="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur">
-        <h1 class="text-2xl font-semibold">Create account</h1>
+    <div class="d-flex justify-content-center align-items-center px-3 py-4" style="min-height: 80vh">
+      <form [formGroup]="form" (ngSubmit)="submit()" class="card card-body p-4 w-100 shadow-sm" style="max-width: 448px">
+        <h1 class="h3 fw-semibold mb-3">Create account</h1>
 
         @if (error()) {
-          <div class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error() }}</div>
+          <div class="alert alert-danger py-2 small">{{ error() }}</div>
         }
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">Full name</label>
-          <input formControlName="fullName"
-                 class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
+        <div class="mb-3">
+          <label class="form-label small">Full name</label>
+          <input formControlName="fullName" class="form-control" />
         </div>
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">Email</label>
-          <input type="email" formControlName="email"
-                 class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
+        <div class="mb-3">
+          <label class="form-label small">Email</label>
+          <input type="email" formControlName="email" class="form-control" />
         </div>
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">Password</label>
-          <input type="password" formControlName="password"
-                 class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
-          <p class="mt-1 text-xs text-slate-500">Min 6 chars, with upper, lower and a digit</p>
+        <div class="mb-3">
+          <label class="form-label small">Password</label>
+          <input type="password" formControlName="password" class="form-control" />
+          <div class="form-text">Min 6 chars, with upper, lower and a digit</div>
         </div>
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">I am a</label>
-          <select formControlName="role"
-                  class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400">
+        <div class="mb-3">
+          <label class="form-label small">I am a</label>
+          <select formControlName="role" class="form-select">
             <option value="Customer">Customer</option>
             <option value="RestaurantOwner">Restaurant Owner</option>
             <option value="DeliveryPartner">Delivery Partner</option>
           </select>
         </div>
 
-        <button type="submit" [disabled]="loading()"
-                class="w-full rounded-lg bg-indigo-500 py-2 font-medium hover:bg-indigo-400 disabled:opacity-50">
+        <button type="submit" [disabled]="loading()" class="btn btn-primary w-100">
           {{ loading() ? 'Creating...' : 'Register' }}
         </button>
 
-        <p class="text-center text-sm text-slate-400">
-          Already have an account? <a routerLink="/login" class="text-indigo-300 hover:underline">Login</a>
+        <p class="text-center text-body-secondary small mt-3 mb-0">
+          Already have an account? <a routerLink="/login">Login</a>
         </p>
       </form>
     </div>

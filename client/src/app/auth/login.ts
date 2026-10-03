@@ -7,41 +7,35 @@ import { AuthService } from '../core/auth.service';
   selector: 'app-login',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="flex min-h-[80vh] items-center justify-center px-4">
-      <form [formGroup]="form" (ngSubmit)="submit()"
-            class="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur">
-        <h1 class="text-2xl font-semibold">Welcome back</h1>
-        <p class="text-sm text-slate-400">Login to FoodOps</p>
+    <div class="d-flex justify-content-center align-items-center px-3" style="min-height: 80vh">
+      <form [formGroup]="form" (ngSubmit)="submit()" class="card card-body p-4 w-100 shadow-sm" style="max-width: 448px">
+        <h1 class="h3 fw-semibold">Welcome back</h1>
+        <p class="text-body-secondary small">Login to FoodOps</p>
 
         @if (error()) {
-          <div class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error() }}</div>
+          <div class="alert alert-danger py-2 small">{{ error() }}</div>
         }
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">Email</label>
-          <input type="email" formControlName="email"
-                 class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
-          @if (form.controls.email.touched && form.controls.email.invalid) {
-            <p class="mt-1 text-xs text-red-300">Enter a valid email</p>
-          }
+        <div class="mb-3">
+          <label class="form-label small">Email</label>
+          <input type="email" formControlName="email" class="form-control"
+                 [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid" />
+          <div class="invalid-feedback">Enter a valid email</div>
         </div>
 
-        <div>
-          <label class="mb-1 block text-sm text-slate-300">Password</label>
-          <input type="password" formControlName="password"
-                 class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
-          @if (form.controls.password.touched && form.controls.password.invalid) {
-            <p class="mt-1 text-xs text-red-300">Password is required</p>
-          }
+        <div class="mb-3">
+          <label class="form-label small">Password</label>
+          <input type="password" formControlName="password" class="form-control"
+                 [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid" />
+          <div class="invalid-feedback">Password is required</div>
         </div>
 
-        <button type="submit" [disabled]="loading()"
-                class="w-full rounded-lg bg-indigo-500 py-2 font-medium hover:bg-indigo-400 disabled:opacity-50">
+        <button type="submit" [disabled]="loading()" class="btn btn-primary w-100">
           {{ loading() ? 'Signing in...' : 'Login' }}
         </button>
 
-        <p class="text-center text-sm text-slate-400">
-          New here? <a routerLink="/register" class="text-indigo-300 hover:underline">Create an account</a>
+        <p class="text-center text-body-secondary small mt-3 mb-0">
+          New here? <a routerLink="/register">Create an account</a>
         </p>
       </form>
     </div>

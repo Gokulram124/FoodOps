@@ -12,106 +12,119 @@ const SLA_MINUTES = 45;
   selector: 'app-admin-dashboard',
   imports: [CurrencyPipe],
   template: `
-    <div class="mx-auto max-w-5xl px-6 py-8">
-      <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold">Operations dashboard</h1>
-        <span class="text-xs text-slate-500">Updates every 15 seconds</span>
+    <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 1024px">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 fw-semibold m-0">Operations dashboard</h1>
+        <span class="small text-body-secondary">Updates every 15 seconds</span>
       </div>
 
       @if (error()) {
-        <div class="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error() }}</div>
+        <div class="alert alert-danger py-2 small">{{ error() }}</div>
       }
 
       @if (stats(); as s) {
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Total orders</p>
-            <p class="mt-1 text-2xl font-semibold">{{ s.totalOrders }}</p>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Total orders</div>
+              <div class="fs-3 fw-semibold mt-1 ">{{ s.totalOrders }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Active now</p>
-            <p class="mt-1 text-2xl font-semibold">{{ s.activeOrders }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Active now</div>
+              <div class="fs-3 fw-semibold mt-1 ">{{ s.activeOrders }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Revenue (delivered)</p>
-            <p class="mt-1 text-2xl font-semibold">{{ s.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Revenue (delivered)</div>
+              <div class="fs-3 fw-semibold mt-1 ">{{ s.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Avg delivery time</p>
-            <p class="mt-1 text-2xl font-semibold">
-              {{ s.avgDeliveryMinutes === null ? 'No data' : s.avgDeliveryMinutes + ' min' }}
-            </p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Avg delivery time</div>
+              <div class="fs-3 fw-semibold mt-1 ">{{ s.avgDeliveryMinutes === null ? 'No data' : s.avgDeliveryMinutes + ' min' }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Delivered</p>
-            <p class="mt-1 text-2xl font-semibold text-emerald-300">{{ s.deliveredOrders }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Delivered</div>
+              <div class="fs-3 fw-semibold mt-1 text-success">{{ s.deliveredOrders }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Cancelled / rejected</p>
-            <p class="mt-1 text-2xl font-semibold text-red-300">{{ s.cancelledOrders }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Cancelled / rejected</div>
+              <div class="fs-3 fw-semibold mt-1 text-danger">{{ s.cancelledOrders }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">At risk</p>
-            <p class="mt-1 text-2xl font-semibold text-amber-300">{{ s.atRiskCount }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">At risk</div>
+              <div class="fs-3 fw-semibold mt-1 text-warning">{{ s.atRiskCount }}</div>
+            </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p class="text-xs text-slate-400">Delayed</p>
-            <p class="mt-1 text-2xl font-semibold text-red-300">{{ s.delayedCount }}</p>
+          <div class="col-6 col-md-3">
+            <div class="card card-body h-100">
+              <div class="small text-body-secondary">Delayed</div>
+              <div class="fs-3 fw-semibold mt-1 text-danger">{{ s.delayedCount }}</div>
+            </div>
           </div>
         </div>
 
-        <section class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <div class="mb-4 flex items-center justify-between">
-            <h2 class="font-medium">Orders by hour of day</h2>
+        <section class="card card-body mt-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h6 fw-medium m-0">Orders by hour of day</h2>
             @if (peakLabel(); as p) {
-              <span class="text-xs text-slate-400">Peak: {{ p }}</span>
+              <span class="small text-body-secondary">Peak: {{ p }}</span>
             }
           </div>
-          <div class="flex h-40 items-end gap-1">
+          <div class="d-flex align-items-end gap-1" style="height: 160px">
             @for (h of s.ordersByHour; track h.hour) {
-              <div class="flex h-full flex-1 flex-col justify-end" [title]="label(h.hour) + ': ' + h.count + ' orders'">
-                <div class="w-full rounded-t bg-indigo-400/80" [style.height.%]="(h.count / maxCount()) * 100"
-                     [class.min-h-px]="h.count > 0"></div>
+              <div class="flex-fill h-100 d-flex flex-column justify-content-end" [title]="label(h.hour) + ': ' + h.count + ' orders'">
+                <div class="w-100 rounded-top bg-primary" style="opacity: 0.8"
+                     [style.height.%]="(h.count / maxCount()) * 100"
+                     [style.min-height.px]="h.count > 0 ? 1 : 0"></div>
               </div>
             }
           </div>
-          <div class="mt-1 flex gap-1 text-[10px] text-slate-500">
+          <div class="d-flex gap-1 mt-1 text-body-secondary" style="font-size: 10px">
             @for (h of s.ordersByHour; track h.hour) {
-              <span class="flex-1 text-center">{{ h.hour % 3 === 0 ? label(h.hour) : '' }}</span>
+              <span class="flex-fill text-center">{{ h.hour % 3 === 0 ? label(h.hour) : '' }}</span>
             }
           </div>
         </section>
 
-        <section class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h2 class="mb-1 font-medium">Delay risk</h2>
-          <p class="mb-4 text-xs text-slate-400">
+        <section class="card card-body mt-3">
+          <h2 class="h6 fw-medium mb-1">Delay risk</h2>
+          <p class="small text-body-secondary mb-3">
             Active orders open for 30+ minutes are "At risk", 45+ minutes are "Delayed" (target: {{ sla }} min).
           </p>
           @if (s.delayedOrders.length === 0) {
-            <p class="text-sm text-slate-400">No orders at risk right now.</p>
+            <p class="small text-body-secondary mb-0">No orders at risk right now.</p>
           } @else {
-            <div class="space-y-3">
-              @for (d of s.delayedOrders; track d.id) {
-                <div>
-                  <div class="mb-1 flex items-center justify-between text-sm">
-                    <span>#{{ d.id }} {{ d.restaurantName }}
-                      <span class="ml-1 rounded-full px-2 py-0.5 text-xs" [class]="badge(d.status)">{{ d.status }}</span>
-                    </span>
-                    <span [class]="d.risk === 'Delayed' ? 'text-red-300' : 'text-amber-300'">
-                      {{ d.elapsedMinutes }} min, {{ d.risk === 'Delayed' ? 'Delayed' : 'At risk' }}
-                    </span>
-                  </div>
-                  <div class="h-2 rounded bg-white/10">
-                    <div class="h-2 rounded" [style.width.%]="pct(d.elapsedMinutes)"
-                         [class]="d.risk === 'Delayed' ? 'bg-red-400' : 'bg-amber-400'"></div>
-                  </div>
+            @for (d of s.delayedOrders; track d.id) {
+              <div class="mb-3">
+                <div class="d-flex align-items-center justify-content-between small mb-1">
+                  <span>#{{ d.id }} {{ d.restaurantName }}
+                    <span class="badge rounded-pill ms-1" [class]="badge(d.status)">{{ d.status }}</span>
+                  </span>
+                  <span [class]="d.risk === 'Delayed' ? 'text-danger' : 'text-warning'">
+                    {{ d.elapsedMinutes }} min, {{ d.risk === 'Delayed' ? 'Delayed' : 'At risk' }}
+                  </span>
                 </div>
-              }
-            </div>
+                <div class="progress" style="height: 8px">
+                  <div class="progress-bar" [style.width.%]="pct(d.elapsedMinutes)"
+                       [class]="d.risk === 'Delayed' ? 'bg-danger' : 'bg-warning'"></div>
+                </div>
+              </div>
+            }
           }
         </section>
       } @else if (!error()) {
-        <p class="text-slate-400">Loading dashboard...</p>
+        <p class="text-body-secondary">Loading dashboard...</p>
       }
     </div>
   `,

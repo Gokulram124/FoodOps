@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <title>FoodOps</title>
@@ -9,7 +9,7 @@
     // Apply the saved theme before Angular loads, so there is no dark flash on a light page
     try {
       var t = localStorage.getItem('foodops_theme');
-      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-bs-theme', t);
     } catch (e) {}
   </script>
 </head>

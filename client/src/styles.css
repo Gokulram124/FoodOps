@@ -1,38 +1,56 @@
-@import "tailwindcss";
+/* Bootstrap 5.3 is loaded from angular.json. Theme switching uses data-bs-theme on <html>. */
 
 :root {
-  color-scheme: dark;
+  /* Brand colour: indigo instead of Bootstrap's default blue */
+  --bs-primary: #6366f1;
+  --bs-primary-rgb: 99, 102, 241;
+  --bs-link-color: #6366f1;
+  --bs-link-color-rgb: 99, 102, 241;
+  --bs-link-hover-color: #4f46e5;
+  --bs-link-hover-color-rgb: 79, 70, 229;
 }
 
-/*
-  Light theme: instead of editing every class in every component, we remap the
-  palette variables Tailwind already uses. The page was designed dark-first, so
-  "white" overlays (bg-white/5, border-white/10) become black overlays in light mode.
-*/
-html[data-theme="light"] {
-  color-scheme: light;
-
-  --color-white: #000000;
-
-  --color-slate-950: #f8fafc;
-  --color-slate-900: #ffffff;
-  --color-slate-500: #64748b;
-  --color-slate-400: #475569;
-  --color-slate-300: #334155;
-  --color-slate-100: #0f172a;
-
-  --color-indigo-300: #4338ca;
-  --color-indigo-400: #4f46e5;
-  --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
-  --color-red-300: #b91c1c;
-  --color-red-400: #dc2626;
-  --color-amber-300: #b45309;
-  --color-amber-400: #d97706;
+[data-bs-theme="dark"] {
+  --bs-body-bg: #020617;
+  --bs-body-bg-rgb: 2, 6, 23;
+  --bs-tertiary-bg: #0b1324;
+  --bs-tertiary-bg-rgb: 11, 19, 36;
+  --bs-border-color: rgba(255, 255, 255, 0.12);
+  --bs-link-color: #a5b4fc;
+  --bs-link-color-rgb: 165, 180, 252;
+  --bs-link-hover-color: #c7d2fe;
+  --bs-link-hover-color-rgb: 199, 210, 254;
+  --bs-primary-text-emphasis: #c7d2fe;
+  --bs-primary-bg-subtle: rgba(99, 102, 241, 0.22);
 }
 
-/* Solid colored buttons must keep white text in light mode */
-html[data-theme="light"] .bg-indigo-500,
-html[data-theme="light"] .bg-emerald-500 {
-  color: #ffffff;
+.btn-primary {
+  --bs-btn-bg: #6366f1;
+  --bs-btn-border-color: #6366f1;
+  --bs-btn-hover-bg: #4f46e5;
+  --bs-btn-hover-border-color: #4f46e5;
+  --bs-btn-active-bg: #4338ca;
+  --bs-btn-active-border-color: #4338ca;
+  --bs-btn-disabled-bg: #6366f1;
+  --bs-btn-disabled-border-color: #6366f1;
+}
+
+/* Cards: slightly lifted from the page background in both themes */
+.card {
+  --bs-card-bg: var(--bs-tertiary-bg);
+}
+.list-group {
+  --bs-list-group-bg: transparent;
+}
+
+.card-hover {
+  transition: border-color 0.15s ease;
+}
+.card-hover:hover {
+  border-color: var(--bs-primary);
+}
+
+.nav-link.active {
+  color: var(--bs-emphasis-color);
+  font-weight: 500;
 }

@@ -1,8 +1,9 @@
+import { badgeClass } from '../core/status';
 import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { EMPTY, Subject, catchError, merge, switchMap, timer } from 'rxjs';
-import { Order, OrderStatus, OrderStatusLog } from '../core/models';
+import { Order, OrderStatusLog } from '../core/models';
 import { OrderService } from '../core/order.service';
 import { toDate } from '../core/utc';
 
@@ -10,68 +11,64 @@ import { toDate } from '../core/utc';
   selector: 'app-my-orders',
   imports: [CurrencyPipe, DatePipe],
   template: `
-    <div class="mx-auto max-w-3xl px-6 py-8">
-      <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold">My orders</h1>
-        <span class="text-xs text-slate-500">Updates every 10 seconds</span>
+    <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 768px">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 fw-semibold m-0">My orders</h1>
+        <span class="small text-body-secondary">Updates every 10 seconds</span>
       </div>
 
       @if (error()) {
-        <div class="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error() }}</div>
+        <div class="alert alert-danger py-2 small">{{ error() }}</div>
       }
 
       @if (loading()) {
-        <p class="text-slate-400">Loading orders...</p>
+        <p class="text-body-secondary">Loading orders...</p>
       } @else if (orders().length === 0) {
-        <p class="text-slate-400">You have not placed any orders yet.</p>
+        <p class="text-body-secondary">You have not placed any orders yet.</p>
       } @else {
-        <div class="space-y-4">
-          @for (o of orders(); track o.id) {
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div class="flex items-start justify-between gap-2">
+        @for (o of orders(); track o.id) {
+          <div class="card mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-start justify-content-between gap-2">
                 <div>
-                  <p class="font-medium">{{ o.restaurantName }}</p>
-                  <p class="text-xs text-slate-400">Order #{{ o.id }} on {{ time(o.orderTime) | date: 'medium' }}</p>
+                  <div class="fw-medium">{{ o.restaurantName }}</div>
+                  <div class="small text-body-secondary">Order #{{ o.id }} on {{ time(o.orderTime) | date: 'medium' }}</div>
                 </div>
-                <span class="rounded-full px-2 py-0.5 text-xs" [class]="badge(o.status)">{{ o.status }}</span>
+                <span class="badge rounded-pill" [class]="badge(o.status)">{{ o.status }}</span>
               </div>
 
-              <ul class="mt-3 space-y-1 text-sm text-slate-300">
+              <ul class="list-unstyled small text-body-secondary mt-3 mb-0">
                 @for (i of o.items; track i.menuItemId) {
                   <li>{{ i.quantity }} x {{ i.name }}</li>
                 }
               </ul>
 
-              <div class="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-sm">
-                <span class="font-medium">{{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
-                <div class="flex gap-2">
-                  <button (click)="toggle(o.id)"
-                          class="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10">
+              <div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3 small">
+                <span class="fw-medium">{{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+                <div class="d-flex gap-2">
+                  <button (click)="toggle(o.id)" class="btn btn-sm btn-outline-secondary">
                     {{ openId() === o.id ? 'Hide timeline' : 'Timeline' }}
                   </button>
                   @if (o.status === 'Placed') {
-                    <button (click)="cancel(o.id)"
-                            class="rounded-lg border border-red-400/30 px-3 py-1 text-red-300 hover:bg-red-500/10">
-                      Cancel
-                    </button>
+                    <button (click)="cancel(o.id)" class="btn btn-sm btn-outline-danger">Cancel</button>
                   }
                 </div>
               </div>
 
               @if (openId() === o.id) {
-                <ol class="mt-4 space-y-2 border-l border-white/10 pl-4 text-sm">
+                <ol class="list-unstyled border-start ps-3 small mt-3 mb-0">
                   @for (t of timeline(); track $index) {
-                    <li>
-                      <span class="font-medium">{{ t.newStatus }}</span>
-                      @if (t.remarks) { <span class="text-slate-400"> - {{ t.remarks }}</span> }
-                      <div class="text-xs text-slate-500">{{ time(t.changedOn) | date: 'medium' }}</div>
+                    <li class="mb-2">
+                      <span class="fw-medium">{{ t.newStatus }}</span>
+                      @if (t.remarks) { <span class="text-body-secondary"> - {{ t.remarks }}</span> }
+                      <div class="text-body-secondary" style="font-size: 0.75rem">{{ time(t.changedOn) | date: 'medium' }}</div>
                     </li>
                   }
                 </ol>
               }
             </div>
-          }
-        </div>
+          </div>
+        }
       }
     </div>
   `,
@@ -128,15 +125,7 @@ export class MyOrdersComponent {
     });
   }
 
-  badge(status: OrderStatus): string {
-    switch (status) {
-      case 'Delivered': return 'bg-emerald-500/20 text-emerald-300';
-      case 'Rejected':
-      case 'Cancelled': return 'bg-red-500/20 text-red-300';
-      case 'Placed': return 'bg-amber-500/20 text-amber-300';
-      default: return 'bg-indigo-500/20 text-indigo-300';
-    }
-  }
+  readonly badge = badgeClass;
 
   private loadTimeline(id: number) {
     this.svc.timeline(id).subscribe(t => this.timeline.set(t));

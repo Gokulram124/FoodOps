@@ -11,7 +11,8 @@ export class ThemeService {
     // Runs now and again whenever theme() changes
     effect(() => {
       const t = this.theme();
-      document.documentElement.setAttribute('data-theme', t);
+      // Bootstrap 5.3 reads this attribute and switches all its colours
+      document.documentElement.setAttribute('data-bs-theme', t);
       try {
         localStorage.setItem(KEY, t);
       } catch {

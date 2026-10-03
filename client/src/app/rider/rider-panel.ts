@@ -11,52 +11,51 @@ import { badgeClass } from '../core/status';
   selector: 'app-rider-panel',
   imports: [ReactiveFormsModule, CurrencyPipe],
   template: `
-    <div class="mx-auto max-w-4xl px-6 py-8">
-      <h1 class="mb-6 text-2xl font-semibold">Delivery panel</h1>
+    <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 896px">
+      <h1 class="h3 fw-semibold mb-4">Delivery panel</h1>
 
       @if (error()) {
-        <div class="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error() }}</div>
+        <div class="alert alert-danger py-2 small">{{ error() }}</div>
       }
 
-      <div class="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
-        <input [formControl]="phone" placeholder="Phone number"
-               class="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 outline-none focus:border-indigo-400" />
-        <button (click)="toggleOnline()"
-                class="rounded-lg px-3 py-2"
-                [class]="online() ? 'border border-white/10 hover:bg-white/10' : 'bg-indigo-500 hover:bg-indigo-400'">
+      <div class="card card-body flex-row flex-wrap align-items-center gap-3 mb-4 small">
+        <input [formControl]="phone" placeholder="Phone number" class="form-control w-auto" />
+        <button (click)="toggleOnline()" class="btn" [class]="online() ? 'btn-outline-secondary' : 'btn-primary'">
           {{ online() ? 'Go offline' : 'Go online' }}
         </button>
-        <span class="rounded-full px-2 py-0.5 text-xs"
-              [class]="online() ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-400'">
+        <span class="badge rounded-pill"
+              [class]="online() ? 'bg-success-subtle text-success-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'">
           {{ online() ? 'Online' : 'Offline' }}
         </span>
       </div>
 
-      <section class="mb-8">
-        <h2 class="mb-3 text-lg font-medium">My deliveries</h2>
+      <section class="mb-4">
+        <h2 class="h5 fw-medium mb-3">My deliveries</h2>
         @if (deliveries().length === 0) {
-          <p class="text-sm text-slate-400">No deliveries yet. Accept an order below.</p>
+          <p class="small text-body-secondary">No deliveries yet. Accept an order below.</p>
         } @else {
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="row g-3">
             @for (d of deliveries(); track d.id) {
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div class="flex items-center justify-between">
-                  <p class="font-medium">Order #{{ d.orderId }}</p>
-                  <span class="rounded-full px-2 py-0.5 text-xs" [class]="badge(d.orderStatus)">{{ d.orderStatus }}</span>
-                </div>
+              <div class="col-md-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <span class="fw-medium">Order #{{ d.orderId }}</span>
+                      <span class="badge rounded-pill" [class]="badge(d.orderStatus)">{{ d.orderStatus }}</span>
+                    </div>
 
-                <div class="mt-3 text-sm">
-                  @if (d.orderStatus === 'ReadyForPickup') {
-                    <button (click)="move(d.orderId, 'PickedUp')"
-                            class="rounded-lg bg-indigo-500 px-3 py-1 hover:bg-indigo-400">Picked up</button>
-                  } @else if (d.orderStatus === 'PickedUp') {
-                    <button (click)="move(d.orderId, 'Delivered')"
-                            class="rounded-lg bg-emerald-500 px-3 py-1 hover:bg-emerald-400">Mark delivered</button>
-                  } @else if (d.orderStatus === 'Delivered') {
-                    <span class="text-slate-400">Completed</span>
-                  } @else {
-                    <span class="text-slate-400">Waiting for the restaurant to finish preparing</span>
-                  }
+                    <div class="small mt-3">
+                      @if (d.orderStatus === 'ReadyForPickup') {
+                        <button (click)="move(d.orderId, 'PickedUp')" class="btn btn-sm btn-primary">Picked up</button>
+                      } @else if (d.orderStatus === 'PickedUp') {
+                        <button (click)="move(d.orderId, 'Delivered')" class="btn btn-sm btn-success">Mark delivered</button>
+                      } @else if (d.orderStatus === 'Delivered') {
+                        <span class="text-body-secondary">Completed</span>
+                      } @else {
+                        <span class="text-body-secondary">Waiting for the restaurant to finish preparing</span>
+                      }
+                    </div>
+                  </div>
                 </div>
               </div>
             }
@@ -65,27 +64,28 @@ import { badgeClass } from '../core/status';
       </section>
 
       <section>
-        <h2 class="mb-3 text-lg font-medium">Available orders</h2>
+        <h2 class="h5 fw-medium mb-3">Available orders</h2>
         @if (available().length === 0) {
-          <p class="text-sm text-slate-400">No orders waiting for a rider right now.</p>
+          <p class="small text-body-secondary">No orders waiting for a rider right now.</p>
         } @else {
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="row g-3">
             @for (o of available(); track o.id) {
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div class="flex items-start justify-between gap-2">
-                  <div>
-                    <p class="font-medium">{{ o.restaurantName }}</p>
-                    <p class="text-xs text-slate-400">Order #{{ o.id }}</p>
+              <div class="col-md-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                      <div>
+                        <div class="fw-medium">{{ o.restaurantName }}</div>
+                        <div class="small text-body-secondary">Order #{{ o.id }}</div>
+                      </div>
+                      <span class="badge rounded-pill" [class]="badge(o.status)">{{ o.status }}</span>
+                    </div>
+                    <p class="small mt-3 mb-0">
+                      {{ o.items.length }} item(s), {{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}
+                    </p>
+                    <button (click)="accept(o.id)" class="btn btn-sm btn-primary mt-3">Accept delivery</button>
                   </div>
-                  <span class="rounded-full px-2 py-0.5 text-xs" [class]="badge(o.status)">{{ o.status }}</span>
                 </div>
-                <p class="mt-3 text-sm text-slate-300">
-                  {{ o.items.length }} item(s), {{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}
-                </p>
-                <button (click)="accept(o.id)"
-                        class="mt-3 rounded-lg bg-indigo-500 px-3 py-1 text-sm hover:bg-indigo-400">
-                  Accept delivery
-                </button>
               </div>
             }
           </div>
