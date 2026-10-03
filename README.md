@@ -1,6 +1,6 @@
 # FoodOps: Food Delivery Operations Platform
 
-A full-stack food delivery operations app with four role-based workflows (customer, restaurant owner, delivery rider, admin), built with **ASP.NET Core 8 Web API** (Clean Architecture) and **Angular 20**.
+A full-stack food delivery operations app with four role-based workflows (customer, restaurant owner, delivery rider, admin), built with **ASP.NET Core 8 Web API** (Clean Architecture) and **Angular 22**.
 
 **Live demo:** https://foodops-gokul.netlify.app
 **API (Swagger):** https://foodops-api.runasp.net/swagger
@@ -59,8 +59,8 @@ These are demo accounts with sample data only. Please do not enter real personal
 | Architecture | Clean Architecture (API / Application / Domain / Infrastructure) |
 | Data | Entity Framework Core 8, SQL Server |
 | Auth | ASP.NET Core Identity, JWT bearer tokens |
-| Frontend | Angular 20 (standalone components, signals, reactive forms, lazy-loaded routes), RxJS |
-| Styling | Tailwind CSS v4 |
+| Frontend | Angular 22 (standalone components, signals, reactive forms, lazy-loaded routes), RxJS |
+| Styling | Bootstrap 5.3 |
 | Hosting | Netlify (frontend), MonsterASP.NET (API and SQL Server) |
 
 ## Architecture
