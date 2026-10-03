@@ -9,8 +9,22 @@ export const routes: Routes = [
   {
     path: 'restaurants',
     canActivate: [roleGuard('Customer')],
-    data: { title: 'Restaurants' },
-    loadComponent: () => import('./shared/placeholder').then(m => m.PlaceholderComponent),
+    loadComponent: () => import('./customer/restaurant-list').then(m => m.RestaurantListComponent),
+  },
+  {
+    path: 'restaurants/:id',
+    canActivate: [roleGuard('Customer')],
+    loadComponent: () => import('./customer/menu').then(m => m.MenuComponent),
+  },
+  {
+    path: 'cart',
+    canActivate: [roleGuard('Customer')],
+    loadComponent: () => import('./customer/cart').then(m => m.CartComponent),
+  },
+  {
+    path: 'orders',
+    canActivate: [roleGuard('Customer')],
+    loadComponent: () => import('./customer/my-orders').then(m => m.MyOrdersComponent),
   },
   {
     path: 'owner',
