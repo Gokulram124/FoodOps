@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
+import { ThemeService } from './core/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -26,15 +27,20 @@ import { CartService } from './core/cart.service';
           }
         </div>
 
-        @if (auth.isLoggedIn()) {
-          <div class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-4 text-sm">
+          <button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.theme() === 'dark' ? 'light' : 'dark') + ' theme'"
+                  class="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10">
+            {{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}
+          </button>
+
+          @if (auth.isLoggedIn()) {
             <span class="text-slate-300">{{ auth.user()?.fullName }}</span>
             <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">{{ auth.role() }}</span>
             <button (click)="logout()" class="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10">
               Logout
             </button>
-          </div>
-        }
+          }
+        </div>
       </header>
 
       <main><router-outlet /></main>
@@ -44,6 +50,7 @@ import { CartService } from './core/cart.service';
 export class App {
   auth = inject(AuthService);
   cart = inject(CartService);
+  theme = inject(ThemeService);
 
   logout() {
     this.cart.clear();

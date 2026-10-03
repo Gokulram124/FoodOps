@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+/*
+  Light theme: instead of editing every class in every component, we remap the
+  palette variables Tailwind already uses. The page was designed dark-first, so
+  "white" overlays (bg-white/5, border-white/10) become black overlays in light mode.
+*/
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --color-white: #000000;
+
+  --color-slate-950: #f8fafc;
+  --color-slate-900: #ffffff;
+  --color-slate-500: #64748b;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-100: #0f172a;
+
+  --color-indigo-300: #4338ca;
+  --color-indigo-400: #4f46e5;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+}
+
+/* Solid colored buttons must keep white text in light mode */
+html[data-theme="light"] .bg-indigo-500,
+html[data-theme="light"] .bg-emerald-500 {
+  color: #ffffff;
+}
