@@ -36,11 +36,10 @@ export const routes: Routes = [
     canActivate: [roleGuard('DeliveryPartner')],
     loadComponent: () => import('./rider/rider-panel').then(m => m.RiderPanelComponent),
   },
-  {
+    {
     path: 'admin',
     canActivate: [roleGuard('Admin')],
-    data: { title: 'Admin Dashboard' },
-    loadComponent: () => import('./shared/placeholder').then(m => m.PlaceholderComponent),
+    loadComponent: () => import('./admin/admin-dashboard').then(m => m.AdminDashboardComponent),
   },
 
   { path: '**', redirectTo: 'login' },

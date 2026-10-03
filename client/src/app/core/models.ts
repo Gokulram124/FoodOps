@@ -81,3 +81,26 @@ export interface Rider {
   phone: string;
   isOnline: boolean;
 }
+
+export interface HourCount { hour: number; count: number; }
+
+export interface DelayedOrder {
+  id: number;
+  restaurantName: string;
+  status: OrderStatus;
+  elapsedMinutes: number;
+  risk: 'AtRisk' | 'Delayed';
+}
+
+export interface AdminStats {
+  totalOrders: number;
+  activeOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  revenue: number;
+  avgDeliveryMinutes: number | null;
+  delayedCount: number;
+  atRiskCount: number;
+  ordersByHour: HourCount[];
+  delayedOrders: DelayedOrder[];
+}
