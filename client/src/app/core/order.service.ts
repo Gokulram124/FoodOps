@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { API_URL } from './config';
-import { Order, OrderStatusLog } from './models';
+import { Order, OrderStatus, OrderStatusLog } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class OrderService {
@@ -21,5 +21,13 @@ export class OrderService {
 
   timeline(orderId: number) {
     return this.http.get<OrderStatusLog[]>(`${API_URL}/orders/${orderId}/timeline`);
+  }
+
+    restaurantOrders() {
+    return this.http.get<Order[]>(`${API_URL}/orders/restaurant`);
+  }
+
+  updateStatus(orderId: number, newStatus: OrderStatus, remarks?: string) {
+    return this.http.put<Order>(`${API_URL}/orders/status`, { orderId, newStatus, remarks });
   }
 }

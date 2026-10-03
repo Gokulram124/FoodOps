@@ -26,17 +26,15 @@ export const routes: Routes = [
     canActivate: [roleGuard('Customer')],
     loadComponent: () => import('./customer/my-orders').then(m => m.MyOrdersComponent),
   },
-  {
+    {
     path: 'owner',
     canActivate: [roleGuard('RestaurantOwner')],
-    data: { title: 'Restaurant Panel' },
-    loadComponent: () => import('./shared/placeholder').then(m => m.PlaceholderComponent),
+    loadComponent: () => import('./owner/owner-orders').then(m => m.OwnerOrdersComponent),
   },
   {
     path: 'rider',
     canActivate: [roleGuard('DeliveryPartner')],
-    data: { title: 'Delivery Panel' },
-    loadComponent: () => import('./shared/placeholder').then(m => m.PlaceholderComponent),
+    loadComponent: () => import('./rider/rider-panel').then(m => m.RiderPanelComponent),
   },
   {
     path: 'admin',

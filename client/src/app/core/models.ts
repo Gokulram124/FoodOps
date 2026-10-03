@@ -65,3 +65,19 @@ export interface OrderStatusLog {
   changedOn: string;
   remarks: string | null;
 }
+
+export interface Delivery {
+  id: number;
+  orderId: number;
+  riderId: number;
+  pickupTime: string | null;
+  deliveredTime: string | null;
+  orderStatus: OrderStatus;
+}
+
+export interface Rider {
+  id: number;
+  name: string;
+  phone: string;
+  isOnline: boolean;
+}
