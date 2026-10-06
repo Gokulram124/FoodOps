@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using FoodOps.Infrastructure;
 using FoodOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +12,31 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console()
     .WriteTo.File("logs/foodops-.log", rollingInterval: RollingInterval.Day));
 
+builder.Services.AddMemoryCache();
+builder.Services.AddDistributedMemoryCache();   // later: swap to Redis, same IDistributedCache interface
+builder.Services.AddResponseCaching();
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("RestaurantList", p => p
+        .Expire(TimeSpan.FromSeconds(60))
+        .SetVaryByQuery("*")        // each ?page=&filter= combination cached separately
+        .Tag("restaurants"));       // so we can evict them all together
+});
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;   // old clients keep working
+    options.ReportApiVersions = true;                     // adds api-supported-versions header
+    options.ApiVersionReader = ApiVersionReader.Combine(
+        new UrlSegmentApiVersionReader(),
+        new HeaderApiVersionReader("X-Api-Version"));
+})
+.AddMvc()
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
@@ -55,6 +81,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
     });
+
 builder.Services.AddAuthorization();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
@@ -75,6 +102,8 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseCors("Angular");
+app.UseResponseCaching();
+app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

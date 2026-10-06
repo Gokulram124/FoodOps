@@ -26,6 +26,8 @@ public class ExceptionMiddleware
                 NotFoundException => (404, ex.Message),
                 ForbiddenException => (403, ex.Message),
                 InvalidOperationException => (400, ex.Message),
+                ArgumentException => (400, ex.Message),
+                FormatException => (400, "Invalid request format."),
                 UnauthorizedAccessException => (401, ex.Message),
                 _ => (500, "An unexpected error occurred.")
             };
