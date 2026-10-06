@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
+using Asp.Versioning.ApiExplorer;
+using FoodOps.API;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -64,6 +66,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -96,7 +100,12 @@ app.UseSerilogRequestLogging();
 await DbSeeder.SeedAsync(app.Services);
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(o =>
+{
+    var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+    foreach (var d in provider.ApiVersionDescriptions)
+        o.SwaggerEndpoint($"/swagger/{d.GroupName}/swagger.json", d.GroupName.ToUpperInvariant());
+});
 
 
 
