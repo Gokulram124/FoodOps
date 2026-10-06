@@ -35,4 +35,12 @@ public class MenuController : ControllerBase
         await _svc.DeleteAsync(id, User.GetUserId(), User.IsAdmin());
         return NoContent();
     }
+
+    [Authorize(Roles = $"{Roles.RestaurantOwner},{Roles.Admin}")]
+    [HttpPost("{id:int}/image")]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file)
+    {
+        await using var stream = file.OpenReadStream();
+        return Ok(await _svc.UploadImageAsync(id, stream, file.FileName, file.Length, User.GetUserId(), User.IsAdmin()));
+    }
 }

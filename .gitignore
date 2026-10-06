@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 appsettings.Production.json
+FoodOps.API/wwwroot/uploads/

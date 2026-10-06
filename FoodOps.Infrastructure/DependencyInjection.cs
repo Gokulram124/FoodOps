@@ -1,5 +1,8 @@
 using FoodOps.Application.Interfaces;
+using FoodOps.Application.Notifications;
+using FoodOps.Application.OrderRules;
 using FoodOps.Infrastructure.Persistence;
+using FoodOps.Infrastructure.Repositories;
 using FoodOps.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -29,9 +32,10 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IDeliveryService, DeliveryService>();
         services.AddScoped<IAdminService, AdminService>();
-
-
-
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IStatusTransitionRule, CustomerCancelRule>();
+        services.AddScoped<IStatusTransitionRule, RestaurantFlowRule>();
+        services.AddSingleton<IOrderNotificationFactory, OrderNotificationFactory>();
         return services;
     }
 }

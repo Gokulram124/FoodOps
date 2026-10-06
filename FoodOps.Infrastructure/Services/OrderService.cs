@@ -1,25 +1,34 @@
 using FoodOps.Application.Common;
 using FoodOps.Application.DTOs.Orders;
 using FoodOps.Application.Interfaces;
+using FoodOps.Application.Notifications;
+using FoodOps.Application.OrderRules;
 using FoodOps.Domain.Entities;
 using FoodOps.Domain.Enums;
 using FoodOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FoodOps.Infrastructure.Services;
 
 public class OrderService : IOrderService
 {
-    private readonly AppDbContext _db;
-    public OrderService(AppDbContext db) => _db = db;
+    private readonly IUnitOfWork _uow;
+    private readonly IEnumerable<IStatusTransitionRule> _rules;
+    private readonly IOrderNotificationFactory _notifications;
+    private readonly ILogger<OrderService> _logger;
 
-    // Which status the restaurant side is allowed to move an order to
-    private static readonly Dictionary<OrderStatus, OrderStatus[]> RestaurantFlow = new()
+    public OrderService(
+        IUnitOfWork uow,
+        IEnumerable<IStatusTransitionRule> rules,
+        IOrderNotificationFactory notifications,
+        ILogger<OrderService> logger)
     {
-        [OrderStatus.Placed] = new[] { OrderStatus.Accepted, OrderStatus.Rejected },
-        [OrderStatus.Accepted] = new[] { OrderStatus.Preparing },
-        [OrderStatus.Preparing] = new[] { OrderStatus.ReadyForPickup }
-    };
+        _uow = uow;
+        _rules = rules;
+        _notifications = notifications;
+        _logger = logger;
+    }
 
     public async Task<OrderDto> PlaceOrderAsync(CreateOrderDto dto, Guid customerId)
     {
@@ -28,7 +37,7 @@ public class OrderService : IOrderService
         if (dto.Items.Any(i => i.Quantity <= 0))
             throw new InvalidOperationException("Quantity must be greater than zero.");
 
-        var restaurant = await _db.Restaurants.AsNoTracking().FirstOrDefaultAsync(r => r.Id == dto.RestaurantId)
+        var restaurant = await _uow.Restaurants.QueryNoTracking().FirstOrDefaultAsync(r => r.Id == dto.RestaurantId)
             ?? throw new NotFoundException("Restaurant not found.");
         if (!restaurant.IsOpen)
             throw new InvalidOperationException("Restaurant is closed.");
@@ -37,7 +46,7 @@ public class OrderService : IOrderService
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
         var ids = requested.Keys.ToList();
 
-        var menu = await _db.MenuItems
+        var menu = await _uow.MenuItems.QueryNoTracking()
             .Where(m => m.RestaurantId == dto.RestaurantId && ids.Contains(m.Id))
             .ToListAsync();
 
@@ -60,10 +69,11 @@ public class OrderService : IOrderService
 
         order.TotalAmount = order.Items.Sum(i => i.Price * i.Quantity);
 
-        _db.Orders.Add(order);
-        await _db.SaveChangesAsync();
+        await using var tx = await _uow.BeginTransactionAsync();
 
-        _db.OrderStatusLogs.Add(new OrderStatusLog
+        await _uow.Orders.AddAsync(order);
+        await _uow.SaveChangesAsync();   // Id generate aagum
+        await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
         {
             OrderId = order.Id,
             OldStatus = OrderStatus.Placed,
@@ -71,14 +81,17 @@ public class OrderService : IOrderService
             ChangedBy = customerId,
             Remarks = "Order placed"
         });
-        await _db.SaveChangesAsync();
+        await _uow.SaveChangesAsync();
 
-        return await _db.Orders.AsNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
+        await tx.CommitAsync();
+
+        return await _uow.Orders.QueryNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
+
     }
 
     public async Task<List<OrderDto>> GetMyOrdersAsync(Guid customerId)
     {
-        return await _db.Orders.AsNoTracking()
+        return await _uow.Orders.QueryNoTracking()
             .Where(o => o.CustomerId == customerId)
             .OrderByDescending(o => o.OrderTime)
             .ProjectToDto()
@@ -87,7 +100,7 @@ public class OrderService : IOrderService
 
     public async Task<List<OrderDto>> GetRestaurantOrdersAsync(Guid userId, bool isAdmin, OrderStatus? status)
     {
-        var query = _db.Orders.AsNoTracking().AsQueryable();
+        var query = _uow.Orders.QueryNoTracking().AsQueryable();
         if (!isAdmin)
             query = query.Where(o => o.Restaurant!.OwnerId == userId);
         if (status.HasValue)
@@ -98,33 +111,18 @@ public class OrderService : IOrderService
 
     public async Task<OrderDto> UpdateStatusAsync(UpdateOrderStatusDto dto, Guid userId, string role)
     {
-        var order = await _db.Orders.Include(o => o.Restaurant)
+        var order = await _uow.Orders.Query().Include(o => o.Restaurant)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId)
             ?? throw new NotFoundException("Order not found.");
 
         var old = order.Status;
 
-        if (role == Roles.Customer)
-        {
-            if (order.CustomerId != userId) throw new ForbiddenException("Not your order.");
-            if (dto.NewStatus != OrderStatus.Cancelled || old != OrderStatus.Placed)
-                throw new InvalidOperationException("You can only cancel an order that is still in Placed status.");
-        }
-        else if (role == Roles.RestaurantOwner || role == Roles.Admin)
-        {
-            if (role == Roles.RestaurantOwner && order.Restaurant!.OwnerId != userId)
-                throw new ForbiddenException("Not your restaurant's order.");
-
-            if (!RestaurantFlow.TryGetValue(old, out var allowed) || !allowed.Contains(dto.NewStatus))
-                throw new InvalidOperationException($"Cannot move order from {old} to {dto.NewStatus}.");
-        }
-        else
-        {
-            throw new ForbiddenException("You are not allowed to update order status.");
-        }
+        var rule = _rules.FirstOrDefault(r => r.AppliesTo(role))
+            ?? throw new ForbiddenException("You are not allowed to update order status.");
+        rule.Validate(order, dto.NewStatus, userId, role);
 
         order.Status = dto.NewStatus;
-        _db.OrderStatusLogs.Add(new OrderStatusLog
+        await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
         {
             OrderId = order.Id,
             OldStatus = old,
@@ -132,14 +130,19 @@ public class OrderService : IOrderService
             ChangedBy = userId,
             Remarks = dto.Remarks
         });
-        await _db.SaveChangesAsync();
+        await _uow.SaveChangesAsync();
 
-        return await _db.Orders.AsNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
+        var note = _notifications.Create(order.Id, dto.NewStatus);
+        if (note != null)
+            _logger.LogInformation("Notify customer {CustomerId}: {Title} - {Body}",
+                order.CustomerId, note.Title, note.Body);
+
+        return await _uow.Orders.QueryNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
     }
 
     public async Task<List<OrderStatusLogDto>> GetTimelineAsync(int orderId, Guid userId, string role)
     {
-        var order = await _db.Orders.AsNoTracking().Include(o => o.Restaurant)
+        var order = await _uow.Orders.QueryNoTracking().Include(o => o.Restaurant)
             .FirstOrDefaultAsync(o => o.Id == orderId)
             ?? throw new NotFoundException("Order not found.");
 
@@ -148,7 +151,7 @@ public class OrderService : IOrderService
             || (role == Roles.RestaurantOwner && order.Restaurant!.OwnerId == userId);
         if (!allowed) throw new ForbiddenException("You cannot view this order.");
 
-        return await _db.OrderStatusLogs.AsNoTracking()
+        return await _uow.OrderStatusLogs.QueryNoTracking()
             .Where(l => l.OrderId == orderId)
             .OrderBy(l => l.ChangedOn)
             .Select(l => new OrderStatusLogDto(l.OldStatus, l.NewStatus, l.ChangedOn, l.Remarks))

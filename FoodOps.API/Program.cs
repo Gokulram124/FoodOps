@@ -8,6 +8,11 @@ using Serilog;
 using System.Text;
 using Asp.Versioning.ApiExplorer;
 using FoodOps.API;
+using FluentValidation;
+using FoodOps.API.Filters;
+using FoodOps.Application.Validators;
+using FoodOps.Application.Interfaces;
+using FoodOps.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -40,9 +45,11 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(o => o.Filters.Add<ValidationFilter>())
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
         new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateRestaurantValidator>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -64,11 +71,14 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+    c.OperationFilter<RemoveVersionHeaderFilter>();
 });
 
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+var webRoot = builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+builder.Services.AddSingleton<IFileStorage>(new LocalFileStorage(webRoot));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
@@ -110,6 +120,7 @@ app.UseSwaggerUI(o =>
 
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("Angular");
 app.UseResponseCaching();
 app.UseOutputCache();
