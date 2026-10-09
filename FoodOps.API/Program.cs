@@ -1,18 +1,21 @@
 using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
+using FluentValidation;
+using FoodOps.API;
+using FoodOps.API.Filters;
+using FoodOps.API.Workers;
+using FoodOps.Application.DelayRules;
+using FoodOps.Application.Interfaces;
+using FoodOps.Application.Operations;
+using FoodOps.Application.Validators;
 using FoodOps.Infrastructure;
 using FoodOps.Infrastructure.Persistence;
+using FoodOps.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
-using Asp.Versioning.ApiExplorer;
-using FoodOps.API;
-using FluentValidation;
-using FoodOps.API.Filters;
-using FoodOps.Application.Validators;
-using FoodOps.Application.Interfaces;
-using FoodOps.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -75,6 +78,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+builder.Services.Configure<DelayOptions>(builder.Configuration.GetSection(DelayOptions.SectionName));
+builder.Services.Configure<OpsOptions>(builder.Configuration.GetSection(OpsOptions.SectionName));
+builder.Services.AddHostedService<OpsScanWorker>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 var webRoot = builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");

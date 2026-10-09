@@ -1,3 +1,4 @@
+using FoodOps.Application.DelayRules;
 using FoodOps.Application.DTOs.Admin;
 using FoodOps.Application.Interfaces;
 using FoodOps.Domain.Enums;
@@ -9,11 +10,15 @@ namespace FoodOps.Infrastructure.Services;
 public class AdminService : IAdminService
 {
     private readonly AppDbContext _db;
-    public AdminService(AppDbContext db) => _db = db;
+    private readonly IDelayAnalyzer _analyzer;
 
-    // Delay-risk rule: an active order open this long is "At risk", and this long is "Delayed"
-    private const int AtRiskMinutes = 30;
-    private const int DelayedMinutes = 45;
+    public AdminService(AppDbContext db, IDelayAnalyzer analyzer)
+    {
+        _db = db;
+        _analyzer = analyzer;
+    }
+
+
 
     private static readonly OrderStatus[] Active =
     {
@@ -27,15 +32,16 @@ public class AdminService : IAdminService
 
         // Fine for a portfolio-size dataset. At scale you would push the grouping into SQL.
         var orders = await _db.Orders.AsNoTracking()
-            .Select(o => new
-            {
-                o.Id,
-                o.Status,
-                o.TotalAmount,
-                o.OrderTime,
-                RestaurantName = o.Restaurant!.Name
-            })
-            .ToListAsync();
+        .Select(o => new
+        {
+            o.Id,
+            o.Status,
+            o.TotalAmount,
+            o.OrderTime,
+            o.RiderId,
+            RestaurantName = o.Restaurant!.Name
+        })
+        .ToListAsync();
 
         var delivered = orders.Where(o => o.Status == OrderStatus.Delivered).ToList();
         var active = orders.Where(o => Active.Contains(o.Status)).ToList();
@@ -61,20 +67,16 @@ public class AdminService : IAdminService
             .Select(h => new HourCountDto(h, byHour.GetValueOrDefault(h)))
             .ToList();
 
-        // Delay risk
-        var risky = active
-            .Select(o => new
-            {
-                o,
-                Elapsed = (int)(now - o.OrderTime).TotalMinutes
-            })
-            .Where(x => x.Elapsed >= AtRiskMinutes)
-            .OrderByDescending(x => x.Elapsed)
-            .Select(x => new DelayedOrderDto(
-                x.o.Id, x.o.RestaurantName, x.o.Status.ToString(), x.Elapsed,
-                x.Elapsed >= DelayedMinutes ? "Delayed" : "AtRisk"))
-            .ToList();
 
+        // Delay risk: every rule looks at every active order, the highest risk wins
+        var findings = _analyzer.Analyze(active.Select(o =>
+            new ActiveOrder(o.Id, o.RestaurantName, o.Status, o.OrderTime, o.RiderId)));
+
+        var risky = findings
+            .Select(f => new DelayedOrderDto(
+                f.OrderId, f.RestaurantName, f.Status.ToString(), f.ElapsedMinutes,
+                f.Level.ToString(), string.Join("; ", f.Reasons)))
+            .ToList();
         return new AdminStatsDto(
             TotalOrders: orders.Count,
             ActiveOrders: active.Count,

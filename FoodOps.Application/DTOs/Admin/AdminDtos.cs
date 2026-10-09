@@ -2,8 +2,7 @@ namespace FoodOps.Application.DTOs.Admin;
 
 public record HourCountDto(int Hour, int Count);
 
-public record DelayedOrderDto(int Id, string RestaurantName, string Status, int ElapsedMinutes, string Risk);
-
+public record DelayedOrderDto(int Id, string RestaurantName, string Status, int ElapsedMinutes, string Risk, string? Reason = null);
 public record AdminStatsDto(
     int TotalOrders,
     int ActiveOrders,
