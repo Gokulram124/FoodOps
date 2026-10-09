@@ -32,6 +32,11 @@ export const routes: Routes = [
     loadComponent: () => import('./owner/owner-orders').then(m => m.OwnerOrdersComponent),
   },
   {
+    path: 'owner/menu',
+    canActivate: [roleGuard('RestaurantOwner')],
+    loadComponent: () => import('./owner/owner-menu').then(m => m.OwnerMenuComponent),
+  },
+  {
     path: 'rider',
     canActivate: [roleGuard('DeliveryPartner')],
     loadComponent: () => import('./rider/rider-panel').then(m => m.RiderPanelComponent),

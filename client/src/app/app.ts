@@ -27,6 +27,13 @@ import { ThemeService } from './core/theme.service';
               <li class="nav-item"><a routerLink="/orders" routerLinkActive="active" class="nav-link py-1 px-2">My orders</a></li>
             </ul>
           }
+
+          @if (auth.role() === 'RestaurantOwner') {
+            <ul class="nav gap-1">
+              <li class="nav-item"><a routerLink="/owner" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" class="nav-link py-1 px-2">Orders</a></li>
+              <li class="nav-item"><a routerLink="/owner/menu" routerLinkActive="active" class="nav-link py-1 px-2">Menu</a></li>
+            </ul>
+          }
         </div>
 
         <div class="d-flex align-items-center gap-2 gap-md-3 small">

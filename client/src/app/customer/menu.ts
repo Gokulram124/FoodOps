@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
+import { imageSrc } from '../core/config';
 import { CartService } from '../core/cart.service';
 import { MenuService } from '../core/menu.service';
 import { MenuItem, Restaurant } from '../core/models';
@@ -45,9 +46,14 @@ import { RestaurantService } from '../core/restaurant.service';
                   <div class="list-group list-group-flush">
                     @for (m of g.items; track m.id) {
                       <div class="list-group-item d-flex align-items-center justify-content-between gap-3">
-                        <div>
-                          <div>{{ m.name }}</div>
-                          <div class="small text-body-secondary">{{ m.price | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+                        <div class="d-flex align-items-center gap-3">
+                          @if (img(m.imageUrl); as src) {
+                            <img [src]="src" [alt]="m.name" width="56" height="56" class="rounded object-fit-cover flex-shrink-0">
+                          }
+                          <div>
+                            <div>{{ m.name }}</div>
+                            <div class="small text-body-secondary">{{ m.price | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+                          </div>
                         </div>
                         <button (click)="add(r, m)" [disabled]="!r.isOpen || !m.isAvailable" class="btn btn-sm btn-primary flex-shrink-0">
                           {{ m.isAvailable ? 'Add' : 'Unavailable' }}
@@ -97,6 +103,7 @@ export class MenuComponent {
   private restaurants = inject(RestaurantService);
   private menuService = inject(MenuService);
   cart = inject(CartService);
+  readonly img = imageSrc;
 
   restaurant = signal<Restaurant | null>(null);
   items = signal<MenuItem[]>([]);

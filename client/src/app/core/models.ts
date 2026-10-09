@@ -30,6 +30,7 @@ export interface MenuItem {
   price: number;
   category: string;
   isAvailable: boolean;
+  imageUrl?: string | null;
 }
 
 export interface CartLine {
