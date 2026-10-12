@@ -3,4 +3,5 @@
   <Project Path="FoodOps.Application/FoodOps.Application.csproj" />
   <Project Path="FoodOps.Domain/FoodOps.Domain.csproj" />
   <Project Path="FoodOps.Infrastructure/FoodOps.Infrastructure.csproj" />
+  <Project Path="FoodOps.Tests/FoodOps.Tests.csproj" Id="19e35f7a-4b60-457b-88d4-71ea1f2996ac" />
 </Solution>
