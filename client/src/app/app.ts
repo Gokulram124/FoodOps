@@ -1,8 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject, untracked } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { ThemeService } from './core/theme.service';
+import { RealtimeService } from './core/realtime.service';
 
 @Component({
   selector: 'app-root',
@@ -58,7 +59,14 @@ export class App {
   auth = inject(AuthService);
   cart = inject(CartService);
   theme = inject(ThemeService);
+private realtime = inject(RealtimeService);
 
+constructor() {
+  effect(() => {
+    const loggedIn = this.auth.isLoggedIn();
+    untracked(() => (loggedIn ? this.realtime.start() : this.realtime.stop()));
+  });
+}
   logout() {
     this.cart.clear();
     this.auth.logout();

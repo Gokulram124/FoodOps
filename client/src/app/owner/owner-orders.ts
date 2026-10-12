@@ -6,6 +6,7 @@ import { Order, OrderStatus } from '../core/models';
 import { OrderService } from '../core/order.service';
 import { badgeClass } from '../core/status';
 import { toDate } from '../core/utc';
+import { RealtimeService } from '../core/realtime.service';
 
 interface Action {
   label: string;
@@ -32,6 +33,9 @@ const IN_PROGRESS: OrderStatus[] = ['Placed', 'Accepted', 'Preparing', 'ReadyFor
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 896px">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <h1 class="h3 fw-semibold m-0">Restaurant orders</h1>
+        <span class="small" [class]="rt.connected() ? 'text-success' : 'text-body-secondary'">
+          {{ rt.connected() ? '● Live' : 'Connecting...' }}
+        </span>
         <div class="d-flex align-items-center gap-2">
           <button (click)="tab.set('active')" [class]="tabClass('active')">Active ({{ activeCount() }})</button>
           <button (click)="tab.set('all')" [class]="tabClass('all')">All ({{ orders().length }})</button>
@@ -107,9 +111,9 @@ export class OwnerOrdersComponent {
   visible = computed(() =>
     this.tab() === 'all' ? this.orders() : this.orders().filter(o => IN_PROGRESS.includes(o.status))
   );
-
+rt = inject(RealtimeService)
   constructor() {
-    merge(timer(0, 10000), this.refresh$)
+    merge(timer(0, 60000), this.refresh$, this.rt.changes$)
       .pipe(
         switchMap(() =>
           this.svc.restaurantOrders().pipe(

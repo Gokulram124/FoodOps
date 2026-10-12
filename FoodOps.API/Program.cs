@@ -3,9 +3,11 @@ using Asp.Versioning.ApiExplorer;
 using FluentValidation;
 using FoodOps.API;
 using FoodOps.API.Filters;
+using FoodOps.API.Hubs;
 using FoodOps.API.Workers;
 using FoodOps.Application.DelayRules;
 using FoodOps.Application.Interfaces;
+using FoodOps.Application.Notifications;
 using FoodOps.Application.Operations;
 using FoodOps.Application.Validators;
 using FoodOps.Infrastructure;
@@ -47,6 +49,8 @@ builder.Services.AddApiVersioning(options =>
     options.GroupNameFormat = "'v'VVV";
     options.SubstituteApiVersionInUrl = true;
 });
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IOrderNotifier, SignalROrderNotifier>();
 
 builder.Services.AddControllers(o => o.Filters.Add<ValidationFilter>())
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
@@ -100,6 +104,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
+        o.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -108,7 +122,7 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string
                      ?? new[] { "http://localhost:4200" };
 
 builder.Services.AddCors(o => o.AddPolicy("Angular", p =>
-    p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+   p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
 app.UseMiddleware<FoodOps.API.Middleware.ExceptionMiddleware>();
@@ -133,5 +147,6 @@ app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<OrderHub>("/hubs/orders");
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.Run();

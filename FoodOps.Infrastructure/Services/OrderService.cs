@@ -17,17 +17,20 @@ public class OrderService : IOrderService
     private readonly IEnumerable<IStatusTransitionRule> _rules;
     private readonly IOrderNotificationFactory _notifications;
     private readonly ILogger<OrderService> _logger;
+    private readonly IOrderNotifier _notifier;
 
     public OrderService(
-        IUnitOfWork uow,
-        IEnumerable<IStatusTransitionRule> rules,
-        IOrderNotificationFactory notifications,
-        ILogger<OrderService> logger)
+     IUnitOfWork uow,
+     IEnumerable<IStatusTransitionRule> rules,
+     IOrderNotificationFactory notifications,
+     IOrderNotifier notifier,
+     ILogger<OrderService> logger)
     {
         _uow = uow;
         _rules = rules;
         _notifications = notifications;
         _logger = logger;
+        _notifier = notifier;
     }
 
     public async Task<OrderDto> PlaceOrderAsync(CreateOrderDto dto, Guid customerId)
@@ -84,6 +87,7 @@ public class OrderService : IOrderService
         await _uow.SaveChangesAsync();
 
         await tx.CommitAsync();
+        await PublishAsync(order);
 
         return await _uow.Orders.QueryNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
 
@@ -131,7 +135,7 @@ public class OrderService : IOrderService
             Remarks = dto.Remarks
         });
         await _uow.SaveChangesAsync();
-
+        await PublishAsync(order);
         var note = _notifications.Create(order.Id, dto.NewStatus);
         if (note != null)
             _logger.LogInformation("Notify customer {CustomerId}: {Title} - {Body}",
@@ -156,5 +160,19 @@ public class OrderService : IOrderService
             .OrderBy(l => l.ChangedOn)
             .Select(l => new OrderStatusLogDto(l.OldStatus, l.NewStatus, l.ChangedOn, l.Remarks))
             .ToListAsync();
+    }
+
+    private async Task PublishAsync(Order o)
+    {
+        try
+        {
+            await _notifier.OrderChangedAsync(
+                new OrderChange(o.Id, o.CustomerId, o.RestaurantId, o.Status, DateTime.UtcNow));
+        }
+        catch (Exception ex)
+        {
+            // a failed push must never fail the order itself
+            _logger.LogWarning(ex, "Realtime push failed for order {OrderId}", o.Id);
+        }
     }
 }

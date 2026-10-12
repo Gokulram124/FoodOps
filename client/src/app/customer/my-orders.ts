@@ -6,6 +6,7 @@ import { EMPTY, Subject, catchError, merge, switchMap, timer } from 'rxjs';
 import { Order, OrderStatusLog } from '../core/models';
 import { OrderService } from '../core/order.service';
 import { toDate } from '../core/utc';
+import { RealtimeService } from '../core/realtime.service';
 
 @Component({
   selector: 'app-my-orders',
@@ -14,7 +15,9 @@ import { toDate } from '../core/utc';
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 768px">
       <div class="d-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 fw-semibold m-0">My orders</h1>
-        <span class="small text-body-secondary">Updates every 10 seconds</span>
+       <span class="small" [class]="rt.connected() ? 'text-success' : 'text-body-secondary'">
+  {{ rt.connected() ? '● Live' : 'Connecting...' }}
+</span>
       </div>
 
       @if (error()) {
@@ -84,10 +87,10 @@ export class MyOrdersComponent {
   error = signal('');
 
   readonly time = toDate;
-
+rt = inject(RealtimeService);
   constructor() {
     // Load now, then every 10s, and also whenever refresh$ fires. switchMap drops a slow old request.
-    merge(timer(0, 10000), this.refresh$)
+    merge(timer(0, 60000), this.refresh$, this.rt.changes$)
       .pipe(
         switchMap(() =>
           this.svc.my().pipe(
