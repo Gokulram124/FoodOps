@@ -16,7 +16,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<Rider> Riders => Set<Rider>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<OrderStatusLog> OrderStatusLogs => Set<OrderStatusLog>();
-
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -37,5 +37,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             .WithMany()
             .HasForeignKey(x => x.RestaurantId)
             .OnDelete(DeleteBehavior.Restrict);
+        b.Entity<RefreshToken>().HasIndex(x => x.TokenHash).IsUnique();
     }
 }

@@ -6,6 +6,7 @@ export interface AuthResponse {
   fullName: string;
   role: Role;
   expiresAt: string;
+  refreshToken: string;
 }
 
 export interface Restaurant {

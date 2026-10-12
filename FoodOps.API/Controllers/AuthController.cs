@@ -27,6 +27,22 @@ public class AuthController : ControllerBase
         catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
     }
 
+
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(RefreshRequestDto dto)
+    {
+        try { return Ok(await _auth.RefreshAsync(dto.RefreshToken)); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(RefreshRequestDto dto)
+    {
+        await _auth.LogoutAsync(dto.RefreshToken);
+        return NoContent();
+    }
+
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me() => Ok(new

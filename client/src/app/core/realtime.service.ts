@@ -29,7 +29,7 @@ export class RealtimeService {
     if (this.conn) return;
 
     this.conn = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL, { accessTokenFactory: () => this.auth.token() ?? '' })
+      .withUrl(HUB_URL, { accessTokenFactory: () => this.auth.freshToken() })
       .withAutomaticReconnect()
       .build();
 
