@@ -12,4 +12,6 @@ public interface IRestaurantService
     Task DeleteAsync(int id, Guid userId, bool isAdmin);
     Task<KeysetResult<RestaurantDto>> GetKeysetAsync(string? cursor, int pageSize);
     Task<IReadOnlyList<string>> GetCitiesAsync();
+
+    Task<IReadOnlyList<RestaurantDto>> GetMineAsync(Guid userId);
 }

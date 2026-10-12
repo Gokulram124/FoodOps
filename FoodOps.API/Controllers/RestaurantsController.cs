@@ -3,6 +3,7 @@ using FoodOps.API.Extensions;
 using FoodOps.Application.Common;
 using FoodOps.Application.DTOs.Restaurants;
 using FoodOps.Application.Interfaces;
+using FoodOps.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -65,4 +66,10 @@ public class RestaurantsController : ControllerBase
     }
     [HttpGet("cities")]
     public async Task<IActionResult> GetCities() => Ok(await _svc.GetCitiesAsync());
+
+    [HttpGet("mine")]
+    [Authorize(Roles = $"{Roles.RestaurantOwner},{Roles.Admin}")]
+    [OutputCache(NoStore = true)]
+    public async Task<IActionResult> Mine()
+    => Ok(await _svc.GetMineAsync(User.GetUserId()));
 }

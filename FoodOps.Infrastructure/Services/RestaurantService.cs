@@ -159,4 +159,13 @@ public class RestaurantService : IRestaurantService
     }
 
     private static RestaurantDto ToDto(Restaurant r) => new(r.Id, r.Name, r.City, r.Rating, r.IsOpen);
+
+    public async Task<IReadOnlyList<RestaurantDto>> GetMineAsync(Guid userId)
+    {
+        return await _db.Restaurants.AsNoTracking()
+            .Where(r => r.OwnerId == userId)
+            .OrderBy(r => r.Name)
+            .Select(r => new RestaurantDto(r.Id, r.Name, r.City, r.Rating, r.IsOpen))
+            .ToListAsync();
+    }
 }

@@ -8,8 +8,8 @@ export const API_URL = isDevMode()
 // API origin without the /api suffix (uploaded images are served from here)
 export const API_ORIGIN = API_URL.replace(/\/api$/, '');
 
-// Backend may return a relative path like /uploads/menu/x.jpg; make it absolute
 export function imageSrc(url?: string | null): string | null {
   if (!url) return null;
-  return /^https?:\/\//i.test(url) ? url : `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
+  if (url.startsWith('http')) return url;
+  return API_URL.replace(/\/api$/, '') + url;   // "/uploads/menu/x.jpg" -> https://localhost:7197/uploads/menu/x.jpg
 }

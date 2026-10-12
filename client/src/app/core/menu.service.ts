@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { API_URL } from './config';
 import { MenuItem } from './models';
 
+
 export interface MenuItemInput {
   restaurantId: number;
   name: string;
