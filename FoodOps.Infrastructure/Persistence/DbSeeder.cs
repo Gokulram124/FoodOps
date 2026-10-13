@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FoodOps.Domain.Entities;
+using Microsoft.Extensions.Configuration;
 
 namespace FoodOps.Infrastructure.Persistence;
 
@@ -20,8 +21,12 @@ public static class DbSeeder
                 await roleMgr.CreateAsync(new IdentityRole<Guid>(role));
 
         var userMgr = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var adminPassword = config["Seed:AdminPassword"];
+        var ownerPassword = config["Seed:OwnerPassword"];
+
         const string adminEmail = "admin@foodops.com";
-        if (await userMgr.FindByEmailAsync(adminEmail) == null)
+        if (!string.IsNullOrWhiteSpace(adminPassword) && await userMgr.FindByEmailAsync(adminEmail) == null)
         {
             var admin = new ApplicationUser
             {
@@ -31,12 +36,14 @@ public static class DbSeeder
                 FullName = "System Admin",
                 EmailConfirmed = true
             };
-            var res = await userMgr.CreateAsync(admin, "Admin@123");
+            var res = await userMgr.CreateAsync(admin, adminPassword);
             if (res.Succeeded) await userMgr.AddToRoleAsync(admin, Roles.Admin);
         }
+
+
         const string ownerEmail = "owner@foodops.com";
         var owner = await userMgr.FindByEmailAsync(ownerEmail);
-        if (owner == null)
+        if (owner == null && !string.IsNullOrWhiteSpace(ownerPassword))
         {
             owner = new ApplicationUser
             {
@@ -46,11 +53,11 @@ public static class DbSeeder
                 FullName = "Demo Owner",
                 EmailConfirmed = true
             };
-            var res = await userMgr.CreateAsync(owner, "Owner@123");
+            var res = await userMgr.CreateAsync(owner, ownerPassword);
             if (res.Succeeded) await userMgr.AddToRoleAsync(owner, Roles.RestaurantOwner);
         }
 
-        if (!await db.Restaurants.AnyAsync())
+        if (owner != null && !await db.Restaurants.AnyAsync())
         {
             db.Restaurants.AddRange(
                 new Restaurant
