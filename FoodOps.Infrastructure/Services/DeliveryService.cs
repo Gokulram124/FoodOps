@@ -6,13 +6,23 @@ using FoodOps.Domain.Entities;
 using FoodOps.Domain.Enums;
 using FoodOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using FoodOps.Application.Notifications;
+using Microsoft.Extensions.Logging;
 
 namespace FoodOps.Infrastructure.Services;
 
 public class DeliveryService : IDeliveryService
 {
     private readonly AppDbContext _db;
-    public DeliveryService(AppDbContext db) => _db = db;
+    private readonly IOrderNotifier _notifier;
+    private readonly ILogger<DeliveryService> _logger;
+
+    public DeliveryService(AppDbContext db, IOrderNotifier notifier, ILogger<DeliveryService> logger)
+    {
+        _db = db;
+        _notifier = notifier;
+        _logger = logger;
+    }
 
     private static readonly OrderStatus[] Assignable =
         { OrderStatus.Accepted, OrderStatus.Preparing, OrderStatus.ReadyForPickup };
@@ -70,7 +80,7 @@ public class DeliveryService : IDeliveryService
             Remarks = $"Rider {rider.Name} assigned"
         });
         await _db.SaveChangesAsync();
-
+        await PublishAsync(order);
         return await _db.Orders.AsNoTracking().Where(o => o.Id == orderId).ProjectToDto().FirstAsync();
     }
 
@@ -104,7 +114,7 @@ public class DeliveryService : IDeliveryService
             ChangedBy = userId
         });
         await _db.SaveChangesAsync();
-
+        await PublishAsync(order);
         return await _db.Orders.AsNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
     }
 
@@ -123,4 +133,17 @@ public class DeliveryService : IDeliveryService
     private async Task<Rider> GetRiderAsync(Guid userId) =>
         await _db.Riders.FirstOrDefaultAsync(r => r.UserId == userId)
             ?? throw new InvalidOperationException("Set yourself online first to create your rider profile.");
+
+    private async Task PublishAsync(Order o)
+    {
+        try
+        {
+            await _notifier.OrderChangedAsync(
+                new OrderChange(o.Id, o.CustomerId, o.RestaurantId, o.Status, DateTime.UtcNow));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Realtime push failed for order {OrderId}", o.Id);
+        }
+    }
 }
