@@ -14,16 +14,18 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Restore
-        run: dotnet restore FoodOps.sln
+        run: dotnet restore FoodOps.slnx
 
       - name: Build
-        run: dotnet build FoodOps.sln --no-restore -c Release
+        run: dotnet build FoodOps.slnx --no-restore -c Release
 
       - name: Test
-        run: dotnet test FoodOps.sln --no-build -c Release
+        run: dotnet test FoodOps.slnx --no-build -c Release
 
   frontend:
     name: Frontend (Angular build)
