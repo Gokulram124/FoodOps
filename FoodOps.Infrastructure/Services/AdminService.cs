@@ -4,6 +4,8 @@ using FoodOps.Application.Interfaces;
 using FoodOps.Domain.Enums;
 using FoodOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using FoodOps.Application.Common;
+using Microsoft.AspNetCore.Identity;
 
 namespace FoodOps.Infrastructure.Services;
 
@@ -11,11 +13,13 @@ public class AdminService : IAdminService
 {
     private readonly AppDbContext _db;
     private readonly IDelayAnalyzer _analyzer;
+    private readonly UserManager<ApplicationUser> _users;
 
-    public AdminService(AppDbContext db, IDelayAnalyzer analyzer)
+    public AdminService(AppDbContext db, IDelayAnalyzer analyzer, UserManager<ApplicationUser> users)
     {
         _db = db;
         _analyzer = analyzer;
+        _users = users;
     }
 
 
@@ -89,4 +93,49 @@ public class AdminService : IAdminService
             OrdersByHour: hours,
             DelayedOrders: risky);
     }
+
+    public async Task<OwnerSummaryDto> CreateOwnerAsync(CreateOwnerDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.FullName) || string.IsNullOrWhiteSpace(dto.Email)
+            || string.IsNullOrWhiteSpace(dto.Password) || !dto.Email.Contains('@'))
+            throw new InvalidOperationException("Name, a valid email and a password are required.");
+
+        var email = dto.Email.Trim().ToLowerInvariant();
+        if (await _users.FindByEmailAsync(email) is not null)
+            throw new InvalidOperationException("An account with this email already exists.");
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = email,
+            Email = email,
+            FullName = dto.FullName.Trim(),
+            EmailConfirmed = true
+        };
+
+        var result = await _users.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+
+        await _users.AddToRoleAsync(user, Roles.RestaurantOwner);
+        return new OwnerSummaryDto(user.Id, user.FullName, email, 0);
+    }
+
+    public async Task<IReadOnlyList<OwnerSummaryDto>> GetOwnersAsync()
+    {
+        var owners = await _users.GetUsersInRoleAsync(Roles.RestaurantOwner);
+
+        // one grouped query for all counts, not one query per owner (avoids N+1)
+        var counts = await _db.Restaurants.AsNoTracking()
+            .GroupBy(r => r.OwnerId)
+            .Select(g => new { OwnerId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OwnerId, x => x.Count);
+
+        return owners
+            .OrderBy(o => o.FullName)
+            .Select(o => new OwnerSummaryDto(o.Id, o.FullName, o.Email ?? "", counts.GetValueOrDefault(o.Id)))
+            .ToList();
+    }
+
+
 }

@@ -33,4 +33,12 @@ public class AdminController : ControllerBase
     [HttpGet("ops-report")]
     public ActionResult<OpsReport> LatestReport()
     => _store.Latest is { } report ? Ok(report) : NoContent();
+
+    [HttpGet("owners")]
+    public async Task<ActionResult<IReadOnlyList<OwnerSummaryDto>>> Owners()
+    => Ok(await _svc.GetOwnersAsync());
+
+    [HttpPost("owners")]
+    public async Task<ActionResult<OwnerSummaryDto>> CreateOwner(CreateOwnerDto dto)
+        => StatusCode(StatusCodes.Status201Created, await _svc.CreateOwnerAsync(dto));
 }

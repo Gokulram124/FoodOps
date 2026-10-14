@@ -35,6 +35,12 @@ import { RealtimeService } from './core/realtime.service';
               <li class="nav-item"><a routerLink="/owner/menu" routerLinkActive="active" class="nav-link py-1 px-2">Menu</a></li>
             </ul>
           }
+          @if (auth.role() === 'Admin') {
+            <ul class="nav gap-1">
+              <li class="nav-item"><a routerLink="/admin" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" class="nav-link py-1 px-2">Dashboard</a></li>
+              <li class="nav-item"><a routerLink="/admin/owners" routerLinkActive="active" class="nav-link py-1 px-2">Owners</a></li>
+            </ul>
+          }
         </div>
 
         <div class="d-flex align-items-center gap-2 gap-md-3 small">

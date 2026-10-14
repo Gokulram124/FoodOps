@@ -106,3 +106,15 @@ export interface AdminStats {
   ordersByHour: HourCount[];
   delayedOrders: DelayedOrder[];
 }
+export interface OwnerSummary {
+  id: string;
+  fullName: string;
+  email: string;
+  restaurantCount: number;
+}
+
+export interface CreateOwnerRequest {
+  fullName: string;
+  email: string;
+  password: string;
+}
