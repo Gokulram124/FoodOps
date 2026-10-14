@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { API_URL } from './config';
-import { AdminStats, CreateOwnerRequest, OwnerSummary } from './models';
+import { AdminRestaurant, AdminStats, CreateOwnerRequest, CreateRestaurantRequest, OwnerSummary, Restaurant } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -20,5 +20,14 @@ export class AdminService {
 
   createOwner(body: CreateOwnerRequest) {
     return this.http.post<OwnerSummary>(`${API_URL}/admin/owners`, body);
+  }
+    restaurants() {
+    const tz = -new Date().getTimezoneOffset();
+    const params = new HttpParams().set('tzOffsetMinutes', tz);
+    return this.http.get<AdminRestaurant[]>(`${API_URL}/admin/restaurants`, { params });
+  }
+
+  createRestaurant(body: CreateRestaurantRequest) {
+    return this.http.post<Restaurant>(`${API_URL}/admin/restaurants`, body);
   }
 }

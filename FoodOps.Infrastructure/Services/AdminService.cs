@@ -6,6 +6,7 @@ using FoodOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using FoodOps.Application.Common;
 using Microsoft.AspNetCore.Identity;
+using FoodOps.Application.DTOs.Restaurants;
 
 namespace FoodOps.Infrastructure.Services;
 
@@ -14,12 +15,15 @@ public class AdminService : IAdminService
     private readonly AppDbContext _db;
     private readonly IDelayAnalyzer _analyzer;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly IRestaurantService _restaurants;
 
-    public AdminService(AppDbContext db, IDelayAnalyzer analyzer, UserManager<ApplicationUser> users)
+    public AdminService(AppDbContext db, IDelayAnalyzer analyzer,
+        UserManager<ApplicationUser> users, IRestaurantService restaurants)
     {
         _db = db;
         _analyzer = analyzer;
         _users = users;
+        _restaurants = restaurants;
     }
 
 
@@ -137,5 +141,54 @@ public class AdminService : IAdminService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<AdminRestaurantDto>> GetRestaurantsAsync(int tzOffsetMinutes)
+    {
+        // "today" in the admin's local time, converted back to UTC (the DB stores UTC)
+        var startUtc = DateTime.UtcNow.AddMinutes(tzOffsetMinutes).Date.AddMinutes(-tzOffsetMinutes);
 
+        var restaurants = await _db.Restaurants.AsNoTracking()
+            .OrderBy(r => r.Name)
+            .Select(r => new { r.Id, r.Name, r.City, r.IsOpen, r.OwnerId })
+            .ToListAsync();
+
+        // orders placed today, plus any order still open from earlier (so "active" is never undercounted)
+        var orders = await _db.Orders.AsNoTracking()
+            .Where(o => o.OrderTime >= startUtc
+                     || (o.Status != OrderStatus.Delivered
+                         && o.Status != OrderStatus.Rejected
+                         && o.Status != OrderStatus.Cancelled))
+            .Select(o => new { o.RestaurantId, o.Status, o.TotalAmount, o.OrderTime })
+            .ToListAsync();
+        var byRestaurant = orders.ToLookup(o => o.RestaurantId);
+
+        var ownerIds = restaurants.Select(r => r.OwnerId).Distinct().ToList();
+        var ownerNames = await _users.Users
+            .Where(u => ownerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return restaurants.Select(r =>
+        {
+            var list = byRestaurant[r.Id].ToList();
+            var today = list.Where(o => o.OrderTime >= startUtc).ToList();
+            return new AdminRestaurantDto(
+                r.Id, r.Name, r.City, r.IsOpen, r.OwnerId,
+                ownerNames.GetValueOrDefault(r.OwnerId, "(unknown)"),
+                OrdersToday: today.Count,
+                RevenueToday: today.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.TotalAmount),
+                ActiveNow: list.Count(o => Active.Contains(o.Status)));
+        }).ToList();
+    }
+
+    public async Task<RestaurantDto> CreateRestaurantAsync(AdminCreateRestaurantDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.City))
+            throw new InvalidOperationException("Name and city are required.");
+
+        var owner = await _users.FindByIdAsync(dto.OwnerId.ToString());
+        if (owner is null || !await _users.IsInRoleAsync(owner, Roles.RestaurantOwner))
+            throw new NotFoundException("Owner not found.");
+
+        // reuse the existing logic (also clears the cities cache)
+        return await _restaurants.CreateAsync(new CreateRestaurantDto(dto.Name.Trim(), dto.City.Trim()), owner.Id);
+    }
 }

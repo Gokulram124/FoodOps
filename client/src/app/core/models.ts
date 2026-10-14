@@ -118,3 +118,20 @@ export interface CreateOwnerRequest {
   email: string;
   password: string;
 }
+export interface AdminRestaurant {
+  id: number;
+  name: string;
+  city: string;
+  isOpen: boolean;
+  ownerId: string;
+  ownerName: string;
+  ordersToday: number;
+  revenueToday: number;
+  activeNow: number;
+}
+
+export interface CreateRestaurantRequest {
+  name: string;
+  city: string;
+  ownerId: string;
+}
