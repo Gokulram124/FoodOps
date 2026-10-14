@@ -22,7 +22,7 @@ public class MenuService : IMenuService
         return await _db.MenuItems.AsNoTracking()
             .Where(m => m.RestaurantId == restaurantId)
             .OrderBy(m => m.Category).ThenBy(m => m.Name)
-            .Select(m => new MenuItemDto(m.Id, m.RestaurantId, m.Name, m.Price, m.Category, m.IsAvailable, m.ImageUrl))
+            .Select(m => new MenuItemDto(m.Id, m.RestaurantId, m.Name, m.Price, m.Category, m.IsAvailable, m.ImageUrl, m.Stock))
             .ToListAsync();
     }
 
@@ -78,7 +78,7 @@ public class MenuService : IMenuService
     }
 
     private static MenuItemDto ToDto(MenuItem m) =>
-    new(m.Id, m.RestaurantId, m.Name, m.Price, m.Category, m.IsAvailable, m.ImageUrl);
+    new(m.Id, m.RestaurantId, m.Name, m.Price, m.Category, m.IsAvailable, m.ImageUrl, m.Stock);
     private const long MaxImageBytes = 2 * 1024 * 1024;   // 2 MB
     private static readonly string[] AllowedExt = { ".jpg", ".jpeg", ".png", ".webp" };
 
@@ -115,4 +115,15 @@ public class MenuService : IMenuService
         (h[0] == 0x89 && h[1] == 0x50 && h[2] == 0x4E && h[3] == 0x47) ||                   // PNG
         (h[0] == 0x52 && h[1] == 0x49 && h[2] == 0x46 && h[3] == 0x46 &&
          h[8] == 0x57 && h[9] == 0x45 && h[10] == 0x42 && h[11] == 0x50);                   // WEBP
+
+    public async Task<MenuItemDto> SetStockAsync(int id, int? stock, Guid userId, bool isAdmin)
+    {
+        if (stock is < 0) throw new ArgumentException("Stock cannot be negative.");
+        var item = await _db.MenuItems.FindAsync(id) ?? throw new NotFoundException("Menu item not found.");
+        await EnsureOwnerAsync(item.RestaurantId, userId, isAdmin);
+
+        item.Stock = stock;
+        await _db.SaveChangesAsync();
+        return ToDto(item);
+    }
 }

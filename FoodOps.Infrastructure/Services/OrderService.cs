@@ -18,19 +18,22 @@ public class OrderService : IOrderService
     private readonly IOrderNotificationFactory _notifications;
     private readonly ILogger<OrderService> _logger;
     private readonly IOrderNotifier _notifier;
+    private readonly IStockService _stock;
 
     public OrderService(
-     IUnitOfWork uow,
-     IEnumerable<IStatusTransitionRule> rules,
-     IOrderNotificationFactory notifications,
-     IOrderNotifier notifier,
-     ILogger<OrderService> logger)
+  IUnitOfWork uow,
+  IEnumerable<IStatusTransitionRule> rules,
+  IOrderNotificationFactory notifications,
+  IOrderNotifier notifier,
+  ILogger<OrderService> logger,
+  IStockService stock)
     {
         _uow = uow;
         _rules = rules;
         _notifications = notifications;
         _logger = logger;
         _notifier = notifier;
+        _stock = stock;
     }
 
     public async Task<OrderDto> PlaceOrderAsync(CreateOrderDto dto, Guid customerId)
@@ -73,7 +76,7 @@ public class OrderService : IOrderService
         order.TotalAmount = order.Items.Sum(i => i.Price * i.Quantity);
 
         await using var tx = await _uow.BeginTransactionAsync();
-
+        await _stock.ReserveAsync(requested);   
         await _uow.Orders.AddAsync(order);
         await _uow.SaveChangesAsync();   // Id generate aagum
         await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog

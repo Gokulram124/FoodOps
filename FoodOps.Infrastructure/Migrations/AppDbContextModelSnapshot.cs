@@ -17,7 +17,7 @@ namespace FoodOps.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.31")
+                .HasAnnotation("ProductVersion", "8.0.32")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -74,6 +74,9 @@ namespace FoodOps.Infrastructure.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("RestaurantId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Stock")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

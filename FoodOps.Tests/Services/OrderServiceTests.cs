@@ -49,11 +49,12 @@ public class OrderServiceTests : IDisposable
         _test.Db.SaveChanges();
 
         _sut = new OrderService(
-            new UnitOfWork(_test.Db),
-            new IStatusTransitionRule[] { new CustomerCancelRule(), new RestaurantFlowRule() },
-            Mock.Of<IOrderNotificationFactory>(),
-            _notifier.Object,
-            NullLogger<OrderService>.Instance);
+    new UnitOfWork(_test.Db),
+    new IStatusTransitionRule[] { new CustomerCancelRule(), new RestaurantFlowRule() },
+    Mock.Of<IOrderNotificationFactory>(),
+    _notifier.Object,
+    NullLogger<OrderService>.Instance,
+    new StockService(_test.Db));
     }
 
     public void Dispose() => _test.Dispose();
@@ -156,6 +157,75 @@ public class OrderServiceTests : IDisposable
     {
         await Assert.ThrowsAsync<NotFoundException>(
             () => _sut.PlaceOrderAsync(Request(9999, (_coffee.Id, 1)), _customer));
+    }
+    // ---------------- Stock ----------------
+
+    private Task SetStockAsync(MenuItem item, int? stock) =>
+        _test.Db.MenuItems.Where(m => m.Id == item.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Stock, stock));
+
+    // projection always reads the database, not the tracked entity
+    private Task<int?> StockOfAsync(MenuItem item) =>
+        _test.Db.MenuItems.AsNoTracking().Where(m => m.Id == item.Id).Select(m => m.Stock).SingleAsync();
+
+    [Fact]
+    public async Task Stock_is_reduced_when_an_order_is_placed()
+    {
+        await SetStockAsync(_biryani, 12);
+
+        await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+
+        Assert.Equal(3, await StockOfAsync(_biryani));
+    }
+
+    [Fact]
+    public async Task Order_is_rejected_when_stock_is_not_enough_and_nothing_changes()
+    {
+        await SetStockAsync(_biryani, 3);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 5)), _customer));
+
+        Assert.Contains("Only 3 left", ex.Message);
+        Assert.Equal(0, await _test.Db.Orders.CountAsync());
+        Assert.Equal(3, await StockOfAsync(_biryani));
+        _notifier.Verify(n => n.OrderChangedAsync(It.IsAny<OrderChange>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Sold_out_item_is_rejected()
+    {
+        await SetStockAsync(_biryani, 0);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 1)), _customer));
+
+        Assert.Contains("sold out", ex.Message);
+    }
+
+    [Fact]
+    public async Task Items_without_a_stock_limit_are_never_blocked()
+    {
+        // _coffee.Stock is null = unlimited
+        var result = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_coffee.Id, 1000)), _customer);
+
+        Assert.Equal(40_000m, result.TotalAmount);
+        Assert.Null(await StockOfAsync(_coffee));
+    }
+
+    [Fact]
+    public async Task Failure_on_a_later_item_gives_back_stock_taken_for_earlier_items()
+    {
+        // biryani is reserved first (lower id), then coffee fails -> biryani must be rolled back
+        await SetStockAsync(_biryani, 1);
+        await SetStockAsync(_coffee, 5);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.PlaceOrderAsync(
+            Request(_kadai.Id, (_biryani.Id, 1), (_coffee.Id, 10)), _customer));
+
+        Assert.Equal(1, await StockOfAsync(_biryani));   // transaction rolled back
+        Assert.Equal(5, await StockOfAsync(_coffee));
+        Assert.Equal(0, await _test.Db.Orders.CountAsync());
     }
 
     // ---------------- UpdateStatusAsync ----------------

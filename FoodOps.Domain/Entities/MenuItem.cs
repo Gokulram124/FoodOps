@@ -15,4 +15,5 @@ public class MenuItem
     public string Category { get; set; } = string.Empty;
     public bool IsAvailable { get; set; } = true;
     public string? ImageUrl { get; set; }
+    public int? Stock { get; set; }   // null = unlimited (existing items keep working)
 }

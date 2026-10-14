@@ -43,4 +43,9 @@ public class MenuController : ControllerBase
         await using var stream = file.OpenReadStream();
         return Ok(await _svc.UploadImageAsync(id, stream, file.FileName, file.Length, User.GetUserId(), User.IsAdmin()));
     }
+
+    [Authorize(Roles = $"{Roles.RestaurantOwner},{Roles.Admin}")]
+    [HttpPut("{id:int}/stock")]
+    public async Task<IActionResult> SetStock(int id, SetStockDto dto)
+    => Ok(await _svc.SetStockAsync(id, dto.Stock, User.GetUserId(), User.IsAdmin()));
 }

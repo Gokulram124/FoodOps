@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddSingleton<IOpsRule, RiderShortageRule>();
         services.AddScoped<IOperationsMonitor, OperationsMonitor>();
         services.AddSingleton<IOpsReportStore, InMemoryOpsReportStore>();
+        services.AddScoped<IStockService, StockService>();
         return services;
     }
 }

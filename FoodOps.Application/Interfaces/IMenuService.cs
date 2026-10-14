@@ -9,4 +9,5 @@ public interface IMenuService
     Task<MenuItemDto> UpdateAsync(int id, UpdateMenuItemDto dto, Guid userId, bool isAdmin);
     Task DeleteAsync(int id, Guid userId, bool isAdmin);
     Task<MenuItemDto> UploadImageAsync(int id, Stream content, string fileName, long length, Guid userId, bool isAdmin);
+    Task<MenuItemDto> SetStockAsync(int id, int? stock, Guid userId, bool isAdmin);
 }
