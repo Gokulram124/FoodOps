@@ -1,11 +1,12 @@
+using DocumentFormat.OpenXml.Bibliography;
 using FoodOps.Application.Common;
 using FoodOps.Application.DTOs.Admin;
+using FoodOps.Application.DTOs.Restaurants;
 using FoodOps.Application.Interfaces;
 using FoodOps.Application.Operations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
-using FoodOps.Application.DTOs.Restaurants;
 
 namespace FoodOps.API.Controllers;
 
@@ -18,13 +19,16 @@ public class AdminController : ControllerBase
     private readonly IOperationsMonitor _monitor;
     private readonly IOpsReportStore _store;
     private readonly IOutputCacheStore _cache;
+    private readonly IReportExporter _exporter;
 
-    public AdminController(IAdminService svc, IOperationsMonitor monitor, IOpsReportStore store, IOutputCacheStore cache)
+
+    public AdminController(IAdminService svc, IOperationsMonitor monitor, IOpsReportStore store, IOutputCacheStore cache, IReportExporter exporter)
     {
         _svc = svc;
         _monitor = monitor;
         _store = store;
         _cache = cache;
+        _exporter = exporter;
     }
 
     [HttpGet("alerts")]
@@ -56,5 +60,26 @@ public class AdminController : ControllerBase
         var created = await _svc.CreateRestaurantAsync(dto);
         await _cache.EvictByTagAsync("restaurants", HttpContext.RequestAborted);   // customers' cached list must refresh
         return StatusCode(StatusCodes.Status201Created, created);
+    }
+
+    [HttpGet("reports/revenue")]
+    public async Task<ActionResult<IReadOnlyList<RevenuePointDto>>> Revenue(
+    [FromQuery] string period = "day",
+    [FromQuery] int? restaurantId = null,
+    [FromQuery] Guid? ownerId = null,
+    [FromQuery] int tzOffsetMinutes = 0)
+    => Ok(await _svc.GetRevenueAsync(period, restaurantId, ownerId, tzOffsetMinutes));
+    [HttpGet("reports/revenue/export")]
+    public async Task<IActionResult> ExportRevenue(
+    [FromQuery] string period = "day",
+    [FromQuery] int? restaurantId = null,
+    [FromQuery] Guid? ownerId = null,
+    [FromQuery] int tzOffsetMinutes = 0)
+    {
+        var rows = await _svc.GetRevenueAsync(period, restaurantId, ownerId, tzOffsetMinutes);
+        var bytes = _exporter.RevenueToExcel(period, rows);
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"revenue-{period}-{DateTime.UtcNow:yyyyMMdd}.xlsx");
     }
 }

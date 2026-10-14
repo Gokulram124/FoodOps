@@ -1,7 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { API_URL } from './config';
-import { AdminRestaurant, AdminStats, CreateOwnerRequest, CreateRestaurantRequest, OwnerSummary, Restaurant } from './models';
+import {
+  AdminRestaurant, AdminStats, CreateOwnerRequest, CreateRestaurantRequest,
+  OwnerSummary, Restaurant, RevenuePoint,
+} from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -21,7 +24,8 @@ export class AdminService {
   createOwner(body: CreateOwnerRequest) {
     return this.http.post<OwnerSummary>(`${API_URL}/admin/owners`, body);
   }
-    restaurants() {
+
+  restaurants() {
     const tz = -new Date().getTimezoneOffset();
     const params = new HttpParams().set('tzOffsetMinutes', tz);
     return this.http.get<AdminRestaurant[]>(`${API_URL}/admin/restaurants`, { params });
@@ -29,5 +33,27 @@ export class AdminService {
 
   createRestaurant(body: CreateRestaurantRequest) {
     return this.http.post<Restaurant>(`${API_URL}/admin/restaurants`, body);
+  }
+
+  revenue(period: string, restaurantId: number | null, ownerId: string | null) {
+    return this.http.get<RevenuePoint[]>(`${API_URL}/admin/reports/revenue`, {
+      params: this.reportParams(period, restaurantId, ownerId),
+    });
+  }
+
+  revenueExcel(period: string, restaurantId: number | null, ownerId: string | null) {
+    return this.http.get(`${API_URL}/admin/reports/revenue/export`, {
+      params: this.reportParams(period, restaurantId, ownerId),
+      responseType: 'blob',
+    });
+  }
+
+  private reportParams(period: string, restaurantId: number | null, ownerId: string | null) {
+    let params = new HttpParams()
+      .set('period', period)
+      .set('tzOffsetMinutes', -new Date().getTimezoneOffset());
+    if (restaurantId !== null) params = params.set('restaurantId', restaurantId);
+    if (ownerId !== null) params = params.set('ownerId', ownerId);
+    return params;
   }
 }

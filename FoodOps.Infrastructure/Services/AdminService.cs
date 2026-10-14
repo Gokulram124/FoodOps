@@ -191,4 +191,59 @@ public class AdminService : IAdminService
         // reuse the existing logic (also clears the cities cache)
         return await _restaurants.CreateAsync(new CreateRestaurantDto(dto.Name.Trim(), dto.City.Trim()), owner.Id);
     }
+
+    public async Task<IReadOnlyList<RevenuePointDto>> GetRevenueAsync(
+    string period, int? restaurantId, Guid? ownerId, int tzOffsetMinutes)
+    {
+        var p = (period ?? "day").ToLowerInvariant();
+        if (p is not ("day" or "week" or "month" or "year")) p = "day";
+
+        // bucket start (in the admin's local time) and how many buckets to show
+        DateTime Bucket(DateTime local) => p switch
+        {
+            "week" => local.Date.AddDays(-(((int)local.DayOfWeek + 6) % 7)),   // week starts Monday
+            "month" => new DateTime(local.Year, local.Month, 1),
+            "year" => new DateTime(local.Year, 1, 1),
+            _ => local.Date
+        };
+        DateTime Step(DateTime b, int n) => p switch
+        {
+            "week" => b.AddDays(7 * n),
+            "month" => b.AddMonths(n),
+            "year" => b.AddYears(n),
+            _ => b.AddDays(n)
+        };
+        string Label(DateTime b) => p switch
+        {
+            "month" => b.ToString("MMM yyyy"),
+            "year" => b.ToString("yyyy"),
+            _ => b.ToString("dd MMM")
+        };
+        var count = p switch { "week" => 12, "month" => 12, "year" => 3, _ => 14 };
+
+        var localNow = DateTime.UtcNow.AddMinutes(tzOffsetMinutes);
+        var first = Step(Bucket(localNow), -(count - 1));
+        var fromUtc = first.AddMinutes(-tzOffsetMinutes);
+
+        var q = _db.Orders.AsNoTracking()
+            .Where(o => o.Status == OrderStatus.Delivered && o.OrderTime >= fromUtc);
+        if (restaurantId is not null) q = q.Where(o => o.RestaurantId == restaurantId);
+        if (ownerId is not null) q = q.Where(o => o.Restaurant!.OwnerId == ownerId);
+
+        var rows = await q.Select(o => new { o.OrderTime, o.TotalAmount }).ToListAsync();
+
+        var grouped = rows
+            .GroupBy(o => Bucket(o.OrderTime.AddMinutes(tzOffsetMinutes)))
+            .ToDictionary(g => g.Key, g => new { Count = g.Count(), Sum = g.Sum(x => x.TotalAmount) });
+
+        // fill empty buckets with zero so the chart has no gaps
+        return Enumerable.Range(0, count)
+            .Select(i =>
+            {
+                var b = Step(first, i);
+                var g = grouped.GetValueOrDefault(b);
+                return new RevenuePointDto(Label(b), g?.Count ?? 0, g?.Sum ?? 0m);
+            })
+            .ToList();
+    }
 }

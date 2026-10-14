@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IDeliveryService, DeliveryService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddSingleton<IReportExporter, ExcelReportExporter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IStatusTransitionRule, CustomerCancelRule>();
         services.AddScoped<IStatusTransitionRule, RestaurantFlowRule>();

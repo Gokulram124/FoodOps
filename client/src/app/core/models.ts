@@ -135,3 +135,8 @@ export interface CreateRestaurantRequest {
   city: string;
   ownerId: string;
 }
+export interface RevenuePoint {
+  label: string;
+  orders: number;
+  revenue: number;
+}

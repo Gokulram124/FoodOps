@@ -10,4 +10,5 @@ public interface IAdminService
     Task<IReadOnlyList<OwnerSummaryDto>> GetOwnersAsync();
     Task<IReadOnlyList<AdminRestaurantDto>> GetRestaurantsAsync(int tzOffsetMinutes);
     Task<RestaurantDto> CreateRestaurantAsync(AdminCreateRestaurantDto dto);
+    Task<IReadOnlyList<RevenuePointDto>> GetRevenueAsync(string period, int? restaurantId, Guid? ownerId, int tzOffsetMinutes);
 }
