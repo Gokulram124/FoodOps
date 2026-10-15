@@ -41,6 +41,7 @@ import { RealtimeService } from './core/realtime.service';
               <li class="nav-item"><a routerLink="/admin/owners" routerLinkActive="active" class="nav-link py-1 px-2">Owners</a></li>
               <li class="nav-item"><a routerLink="/admin/restaurants" routerLinkActive="active" class="nav-link py-1 px-2">Restaurants</a></li>
               <li class="nav-item"><a routerLink="/admin/reports" routerLinkActive="active" class="nav-link py-1 px-2">Reports</a></li>
+              <li class="nav-item"><a routerLink="/admin/coupons" routerLinkActive="active" class="nav-link py-1 px-2">Coupons</a></li>      
             </ul>
           }
         </div>

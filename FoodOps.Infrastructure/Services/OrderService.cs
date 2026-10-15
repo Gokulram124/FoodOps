@@ -91,6 +91,7 @@ public class OrderService : IOrderService
 
         await tx.CommitAsync();
         await PublishAsync(order);
+        await _stock.PublishAsync(order.RestaurantId, requested.Keys);  
 
         return await _uow.Orders.QueryNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
 
@@ -128,6 +129,12 @@ public class OrderService : IOrderService
             ?? throw new ForbiddenException("You are not allowed to update order status.");
         rule.Validate(order, dto.NewStatus, userId, role);
 
+        var giveStockBack = dto.NewStatus is OrderStatus.Cancelled or OrderStatus.Rejected
+                      && old is not (OrderStatus.Cancelled or OrderStatus.Rejected);
+        IReadOnlyList<int> released = Array.Empty<int>();
+
+        await using var tx = await _uow.BeginTransactionAsync();
+
         order.Status = dto.NewStatus;
         await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
         {
@@ -138,7 +145,14 @@ public class OrderService : IOrderService
             Remarks = dto.Remarks
         });
         await _uow.SaveChangesAsync();
+
+        if (giveStockBack)
+            released = await _stock.ReleaseAsync(order.Id);   // same transaction as the status change
+
+        await tx.CommitAsync();
         await PublishAsync(order);
+        if (released.Count > 0)
+            await _stock.PublishAsync(order.RestaurantId, released);
         var note = _notifications.Create(order.Id, dto.NewStatus);
         if (note != null)
             _logger.LogInformation("Notify customer {CustomerId}: {Title} - {Body}",

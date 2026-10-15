@@ -28,6 +28,9 @@ export class MenuService {
   update(id: number, input: MenuItemInput) {
     return this.http.put<MenuItem>(`${API_URL}/menu/${id}`, input);
   }
+    setStock(id: number, stock: number | null) {
+    return this.http.put<MenuItem>(`${API_URL}/menu/${id}/stock`, { stock });
+  }
 
   remove(id: number) {
     return this.http.delete<void>(`${API_URL}/menu/${id}`);

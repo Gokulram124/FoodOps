@@ -72,8 +72,8 @@ export class CartComponent {
         this.cart.clear();
         this.router.navigate(['/orders']);
       },
-      error: err => {
-        this.error.set(err.error?.message ?? 'Could not place the order. Please try again.');
+            error: err => {
+        this.error.set(err.error?.detail ?? err.error?.message ?? 'Could not place the order. Please try again.');
         this.placing.set(false);
       },
     });

@@ -1,10 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { imageSrc } from '../core/config';
 import { MenuService } from '../core/menu.service';
 import { MenuItem, Restaurant } from '../core/models';
 import { RestaurantService } from '../core/restaurant.service';
+import { RealtimeService } from '../core/realtime.service';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -72,6 +74,15 @@ const MAX_BYTES = 2 * 1024 * 1024;
                         }
                       </div>
                     </div>
+                    <div class="d-flex align-items-center gap-2 mt-2 small" style="margin-left: 72px">
+                      <label class="text-body-secondary" [attr.for]="'stock' + m.id">Stock</label>
+                      <input #s [id]="'stock' + m.id" type="number" min="0" step="1"
+                             [value]="m.stock ?? ''" placeholder="unlimited"
+                             class="form-control form-control-sm" style="width: 6rem">
+                      <button type="button" (click)="saveStock(m, s.value)" [disabled]="busy()"
+                              class="btn btn-sm btn-outline-primary">Set</button>
+                      <span class="text-body-secondary">Empty = unlimited</span>
+                    </div>
                   </div>
                 } @empty {
                   <div class="list-group-item text-body-secondary">No menu items yet. Add your first one.</div>
@@ -136,6 +147,8 @@ export class OwnerMenuComponent {
   private fb = inject(FormBuilder);
   private menu = inject(MenuService);
   private restaurantService = inject(RestaurantService);
+  private rt = inject(RealtimeService);
+  private watching: number | null = null;   // restaurant whose menu group we are in
 
   readonly img = imageSrc;
 
@@ -161,11 +174,25 @@ export class OwnerMenuComponent {
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      if (this.watching !== null) this.rt.leaveMenu(this.watching);
+    });
+
+    // live stock changes (customers ordering / cancelling) for the restaurant being shown
+    this.rt.stockChanged$.pipe(takeUntilDestroyed()).subscribe(e => {
+      if (e.restaurantId !== this.restaurantId()) return;
+      this.items.update(list => list.map(m => {
+        const hit = e.items.find(x => x.menuItemId === m.id);
+        return hit ? { ...m, stock: hit.stock } : m;
+      }));
+    });
+
     this.restaurantService.mine().subscribe({
       next: list => {
         this.restaurants.set(list);
         if (list.length > 0) {
           this.restaurantId.set(list[0].id);
+          this.watch(list[0].id);
           this.loadItems();
         } else {
           this.loading.set(false);
@@ -184,9 +211,18 @@ export class OwnerMenuComponent {
   }
 
   selectRestaurant(value: string) {
-    this.restaurantId.set(Number(value));
+    const id = Number(value);
+    this.restaurantId.set(id);
+    this.watch(id);
     this.reset();
     this.loadItems();
+  }
+
+  // leave the previous restaurant's menu group, join the new one
+  private watch(id: number) {
+    if (this.watching !== null) this.rt.leaveMenu(this.watching);
+    this.watching = id;
+    this.rt.joinMenu(id);
   }
 
   private loadItems() {
@@ -304,6 +340,31 @@ export class OwnerMenuComponent {
     this.busy.set(false);
     this.reset();
     this.loadItems();
+  }
+
+  saveStock(m: MenuItem, raw: string) {
+    const text = raw.trim();
+    const stock = text === '' ? null : Number(text);
+    if (stock !== null && (!Number.isInteger(stock) || stock < 0)) {
+      this.error.set('Stock must be a whole number, 0 or more (or empty for unlimited).');
+      return;
+    }
+
+    this.busy.set(true);
+    this.error.set('');
+    this.success.set('');
+
+    this.menu.setStock(m.id, stock).subscribe({
+      next: saved => {
+        this.items.update(list => list.map(x => (x.id === saved.id ? saved : x)));
+        this.success.set(`${saved.name}: ${saved.stock == null ? 'unlimited' : saved.stock + ' in stock'}.`);
+        this.busy.set(false);
+      },
+      error: err => {
+        this.busy.set(false);
+        this.error.set(err.error?.detail ?? err.error?.message ?? 'Could not update stock.');
+      },
+    });
   }
 
   remove(m: MenuItem) {

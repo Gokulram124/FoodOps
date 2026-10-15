@@ -54,7 +54,7 @@ public class OrderServiceTests : IDisposable
     Mock.Of<IOrderNotificationFactory>(),
     _notifier.Object,
     NullLogger<OrderService>.Instance,
-    new StockService(_test.Db));
+               new StockService(_test.Db, _notifier.Object, NullLogger<StockService>.Instance));
     }
 
     public void Dispose() => _test.Dispose();
@@ -226,6 +226,80 @@ public class OrderServiceTests : IDisposable
         Assert.Equal(1, await StockOfAsync(_biryani));   // transaction rolled back
         Assert.Equal(5, await StockOfAsync(_coffee));
         Assert.Equal(0, await _test.Db.Orders.CountAsync());
+    }
+    [Fact]
+    public async Task Cancelling_an_order_gives_the_stock_back()
+    {
+        await SetStockAsync(_biryani, 12);
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+        Assert.Equal(3, await StockOfAsync(_biryani));
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null), _customer, Roles.Customer);
+
+        Assert.Equal(12, await StockOfAsync(_biryani));
+    }
+
+    [Fact]
+    public async Task Rejecting_an_order_gives_the_stock_back()
+    {
+        await SetStockAsync(_biryani, 12);
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Rejected, "no stock"), _owner, Roles.RestaurantOwner);
+
+        Assert.Equal(12, await StockOfAsync(_biryani));
+    }
+
+    [Fact]
+    public async Task Accepting_an_order_does_not_give_stock_back()
+    {
+        await SetStockAsync(_biryani, 12);
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Accepted, null), _owner, Roles.RestaurantOwner);
+
+        Assert.Equal(3, await StockOfAsync(_biryani));
+    }
+
+    [Fact]
+    public async Task Cancelling_an_order_with_unlimited_items_keeps_them_unlimited()
+    {
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_coffee.Id, 2)), _customer);
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null), _customer, Roles.Customer);
+
+        Assert.Null(await StockOfAsync(_coffee));
+    }
+
+    [Fact]
+    public async Task Placing_an_order_pushes_the_new_stock_level_to_the_menu()
+    {
+        await SetStockAsync(_biryani, 12);
+
+        await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+
+        _notifier.Verify(n => n.StockChangedAsync(_kadai.Id,
+            It.Is<IReadOnlyList<StockLevel>>(l => l.Any(x => x.MenuItemId == _biryani.Id && x.Stock == 3))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cancelling_an_order_pushes_the_restored_stock_level()
+    {
+        await SetStockAsync(_biryani, 12);
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);
+        _notifier.Invocations.Clear();
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null), _customer, Roles.Customer);
+
+        _notifier.Verify(n => n.StockChangedAsync(_kadai.Id,
+            It.Is<IReadOnlyList<StockLevel>>(l => l.Any(x => x.MenuItemId == _biryani.Id && x.Stock == 12))),
+            Times.Once);
     }
 
     // ---------------- UpdateStatusAsync ----------------

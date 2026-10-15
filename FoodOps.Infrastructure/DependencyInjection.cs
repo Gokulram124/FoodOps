@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IOperationsMonitor, OperationsMonitor>();
         services.AddSingleton<IOpsReportStore, InMemoryOpsReportStore>();
         services.AddScoped<IStockService, StockService>();
+        services.AddScoped<ICouponService, CouponService>();
         return services;
     }
 }

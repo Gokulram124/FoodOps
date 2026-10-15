@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { API_URL } from './config';
 import {
-  AdminRestaurant, AdminStats, CreateOwnerRequest, CreateRestaurantRequest,
-  OwnerSummary, Restaurant, RevenuePoint,
+  AdminRestaurant, AdminStats, Coupon, CreateCouponRequest, CreateOwnerRequest,
+  CreateRestaurantRequest, CustomerOption, OwnerSummary, Restaurant, RevenuePoint,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -46,6 +46,22 @@ export class AdminService {
       params: this.reportParams(period, restaurantId, ownerId),
       responseType: 'blob',
     });
+  }
+
+  coupons() {
+    return this.http.get<Coupon[]>(`${API_URL}/admin/coupons`);
+  }
+
+  createCoupon(body: CreateCouponRequest) {
+    return this.http.post<Coupon>(`${API_URL}/admin/coupons`, body);
+  }
+
+  setCouponActive(id: number, isActive: boolean) {
+    return this.http.put<Coupon>(`${API_URL}/admin/coupons/${id}/active`, { isActive });
+  }
+
+  customers() {
+    return this.http.get<CustomerOption[]>(`${API_URL}/admin/customers`);
   }
 
   private reportParams(period: string, restaurantId: number | null, ownerId: string | null) {

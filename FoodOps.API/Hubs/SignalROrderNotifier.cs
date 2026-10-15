@@ -18,4 +18,12 @@ public class SignalROrderNotifier : IOrderNotifier
                 status = c.Status.ToString(),
                 at = c.At
             });
+
+    public Task StockChangedAsync(int restaurantId, IReadOnlyList<StockLevel> levels) =>
+    _hub.Clients.Group(OrderGroups.Menu(restaurantId))
+        .SendAsync("stockChanged", new
+        {
+            restaurantId,
+            items = levels.Select(l => new { menuItemId = l.MenuItemId, stock = l.Stock })
+        });
 }

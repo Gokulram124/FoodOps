@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -7,6 +8,7 @@ import { CartService } from '../core/cart.service';
 import { MenuService } from '../core/menu.service';
 import { MenuItem, Restaurant } from '../core/models';
 import { RestaurantService } from '../core/restaurant.service';
+import { RealtimeService } from '../core/realtime.service';
 
 @Component({
   selector: 'app-menu',
@@ -53,10 +55,15 @@ import { RestaurantService } from '../core/restaurant.service';
                           <div>
                             <div>{{ m.name }}</div>
                             <div class="small text-body-secondary">{{ m.price | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+                            @if (m.stock === 0) {
+                              <span class="badge rounded-pill bg-danger-subtle text-danger-emphasis">Sold out</span>
+                            } @else if (m.stock != null && m.stock <= 5) {
+                              <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">Only {{ m.stock }} left</span>
+                            }
                           </div>
                         </div>
-                        <button (click)="add(r, m)" [disabled]="!r.isOpen || !m.isAvailable" class="btn btn-sm btn-primary flex-shrink-0">
-                          {{ m.isAvailable ? 'Add' : 'Unavailable' }}
+                        <button (click)="add(r, m)" [disabled]="!r.isOpen || !m.isAvailable || m.stock === 0" class="btn btn-sm btn-primary flex-shrink-0">
+                          {{ m.stock === 0 ? 'Sold out' : (m.isAvailable ? 'Add' : 'Unavailable') }}
                         </button>
                       </div>
                     }
@@ -102,6 +109,7 @@ export class MenuComponent {
   private route = inject(ActivatedRoute);
   private restaurants = inject(RestaurantService);
   private menuService = inject(MenuService);
+  private rt = inject(RealtimeService);
   cart = inject(CartService);
   readonly img = imageSrc;
 
@@ -121,6 +129,22 @@ export class MenuComponent {
 
   constructor() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+
+    // live stock: join this restaurant's menu group, leave when the page closes
+    this.rt.joinMenu(id);
+    inject(DestroyRef).onDestroy(() => this.rt.leaveMenu(id));
+
+    this.rt.stockChanged$.pipe(takeUntilDestroyed()).subscribe(e => {
+      if (e.restaurantId !== id) return;
+      this.items.update(list => list.map(m => {
+        const hit = e.items.find(x => x.menuItemId === m.id);
+        return hit ? { ...m, stock: hit.stock } : m;
+      }));
+    });
+
+    // after a reconnect we may have missed pushes, so reload once
+    this.rt.reconnects$.pipe(takeUntilDestroyed()).subscribe(() =>
+      this.menuService.getByRestaurant(id).subscribe(menu => this.items.set(menu)));
 
     forkJoin({
       restaurant: this.restaurants.getById(id),

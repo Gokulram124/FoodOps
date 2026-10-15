@@ -11,10 +11,12 @@ public class MenuService : IMenuService
 {
     private readonly AppDbContext _db;
     private readonly IFileStorage _files;
-    public MenuService(AppDbContext db, IFileStorage files)
+    private readonly IStockService _stock;
+    public MenuService(AppDbContext db, IFileStorage files, IStockService stock)
     {
         _db = db;
         _files = files;
+        _stock = stock;
     }
 
     public async Task<List<MenuItemDto>> GetByRestaurantAsync(int restaurantId)
@@ -124,6 +126,7 @@ public class MenuService : IMenuService
 
         item.Stock = stock;
         await _db.SaveChangesAsync();
+        await _stock.PublishAsync(item.RestaurantId, new[] { item.Id });
         return ToDto(item);
     }
 }

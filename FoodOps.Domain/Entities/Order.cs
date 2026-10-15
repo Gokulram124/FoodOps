@@ -15,6 +15,8 @@ public class Order
     public Rider? Rider { get; set; }
     public OrderStatus Status { get; set; } = OrderStatus.Placed;
     public decimal TotalAmount { get; set; }
+    public decimal DiscountAmount { get; set; }      // 0 when no coupon was used
+    public string? CouponCode { get; set; }
     public DateTime OrderTime { get; set; } = DateTime.UtcNow;
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

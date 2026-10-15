@@ -32,6 +32,7 @@ export interface MenuItem {
   category: string;
   isAvailable: boolean;
   imageUrl?: string | null;
+    stock?: number | null;   
 }
 
 export interface CartLine {
@@ -139,4 +140,40 @@ export interface RevenuePoint {
   label: string;
   orders: number;
   revenue: number;
+}
+export type DiscountType = 'Percent' | 'Flat';
+
+export interface Coupon {
+  id: number;
+  code: string;
+  type: DiscountType;
+  value: number;
+  maxDiscount: number | null;
+  minOrderAmount: number;
+  validFromUtc: string;
+  validToUtc: string;
+  assignedUserId: string | null;
+  assignedUserName: string | null;
+  usageLimit: number | null;
+  usedCount: number;
+  isActive: boolean;
+  status: 'Active' | 'Scheduled' | 'Expired' | 'Used up' | 'Disabled';
+}
+
+export interface CreateCouponRequest {
+  code: string;
+  type: DiscountType;
+  value: number;
+  maxDiscount: number | null;
+  minOrderAmount: number;
+  validFromUtc: string;
+  validToUtc: string;
+  assignedUserId: string | null;
+  usageLimit: number | null;
+}
+
+export interface CustomerOption {
+  id: string;
+  fullName: string;
+  email: string;
 }

@@ -29,4 +29,10 @@ public class OrderHub : Hub
 
         await base.OnConnectedAsync();
     }
+    // menu pages join/leave the group of the restaurant they are looking at
+    public Task JoinMenu(int restaurantId) =>
+        Groups.AddToGroupAsync(Context.ConnectionId, OrderGroups.Menu(restaurantId));
+
+    public Task LeaveMenu(int restaurantId) =>
+        Groups.RemoveFromGroupAsync(Context.ConnectionId, OrderGroups.Menu(restaurantId));
 }
