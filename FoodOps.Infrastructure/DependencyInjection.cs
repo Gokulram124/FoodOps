@@ -1,3 +1,4 @@
+using FoodOps.Application.Coupons;
 using FoodOps.Application.DelayRules;
 using FoodOps.Application.Interfaces;
 using FoodOps.Application.Notifications;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FoodOps.Infrastructure;
 
@@ -52,6 +54,10 @@ public static class DependencyInjection
         services.AddSingleton<IOpsReportStore, InMemoryOpsReportStore>();
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<ICouponService, CouponService>();
+        services.AddSingleton<IDiscountStrategy, PercentDiscountStrategy>();
+        services.AddSingleton<IDiscountStrategy, FlatDiscountStrategy>();
+        services.AddScoped<ICouponRedeemer, CouponRedeemer>();
+        services.TryAddSingleton(TimeProvider.System);   // no-op if you already registered one
         return services;
     }
 }

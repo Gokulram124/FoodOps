@@ -11,7 +11,8 @@ using FoodOps.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-
+using FoodOps.Application.Coupons;
+using Microsoft.Extensions.Time.Testing;
 namespace FoodOps.Tests.Services;
 
 // xUnit creates a NEW instance of this class for every test, so every test gets its own fresh database.
@@ -31,6 +32,8 @@ public class OrderServiceTests : IDisposable
     private readonly MenuItem _coffee;      // 40
     private readonly MenuItem _soldOut;
     private readonly MenuItem _otherItem;
+    private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero));
+    private readonly CouponRedeemer _redeemer;
 
     public OrderServiceTests()
     {
@@ -47,14 +50,15 @@ public class OrderServiceTests : IDisposable
 
         _test.Db.Restaurants.AddRange(_kadai, _closed, _other);
         _test.Db.SaveChanges();
-
+        _redeemer = new CouponRedeemer(_test.Db,
+    new IDiscountStrategy[] { new PercentDiscountStrategy(), new FlatDiscountStrategy() }, _clock);
         _sut = new OrderService(
     new UnitOfWork(_test.Db),
     new IStatusTransitionRule[] { new CustomerCancelRule(), new RestaurantFlowRule() },
     Mock.Of<IOrderNotificationFactory>(),
     _notifier.Object,
     NullLogger<OrderService>.Instance,
-               new StockService(_test.Db, _notifier.Object, NullLogger<StockService>.Instance));
+                           new StockService(_test.Db, _notifier.Object, NullLogger<StockService>.Instance),_redeemer);
     }
 
     public void Dispose() => _test.Dispose();
@@ -300,6 +304,218 @@ public class OrderServiceTests : IDisposable
         _notifier.Verify(n => n.StockChangedAsync(_kadai.Id,
             It.Is<IReadOnlyList<StockLevel>>(l => l.Any(x => x.MenuItemId == _biryani.Id && x.Stock == 12))),
             Times.Once);
+    }
+
+    // ---------------- Coupons ----------------
+
+    // 20% off, minimum order 100, valid from yesterday to tomorrow (fake clock = 15 Oct 2026, 12:00 UTC)
+    private async Task<Coupon> AddCouponAsync(Action<Coupon>? tweak = null)
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var c = new Coupon
+        {
+            Code = "SAVE20",
+            Type = DiscountType.Percent,
+            Value = 20,
+            MinOrderAmount = 100,
+            ValidFromUtc = now.AddDays(-1),
+            ValidToUtc = now.AddDays(1)
+        };
+        tweak?.Invoke(c);
+        _test.Db.Coupons.Add(c);
+        await _test.Db.SaveChangesAsync();
+        return c;
+    }
+
+    private CreateOrderDto Biryani(int qty, string? coupon) =>
+        Request(_kadai.Id, (_biryani.Id, qty)) with { CouponCode = coupon };
+
+    private Task<int> UsedCountAsync(Coupon c) =>
+        _test.Db.Coupons.AsNoTracking().Where(x => x.Id == c.Id).Select(x => x.UsedCount).SingleAsync();
+
+    [Fact]
+    public async Task Coupon_reduces_the_total_and_is_recorded()
+    {
+        var coupon = await AddCouponAsync();
+
+        var result = await _sut.PlaceOrderAsync(Biryani(2, "save20"), _customer);   // lower case on purpose
+
+        Assert.Equal(80m, result.DiscountAmount);
+        Assert.Equal(320m, result.TotalAmount);          // 400 - 20%
+        Assert.Equal("SAVE20", result.CouponCode);
+        Assert.Equal(1, await _test.Db.CouponRedemptions.CountAsync(r => r.CouponId == coupon.Id));
+        Assert.Equal(1, await UsedCountAsync(coupon));
+    }
+
+    [Fact]
+    public async Task Percent_discount_is_capped_by_the_maximum()
+    {
+        await AddCouponAsync(c => c.MaxDiscount = 50);
+
+        var result = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        Assert.Equal(50m, result.DiscountAmount);
+        Assert.Equal(350m, result.TotalAmount);
+    }
+
+    [Fact]
+    public async Task Flat_coupon_takes_a_fixed_amount_off()
+    {
+        await AddCouponAsync(c => { c.Type = DiscountType.Flat; c.Value = 30; });
+
+        var result = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        Assert.Equal(370m, result.TotalAmount);
+    }
+
+    [Fact]
+    public async Task A_customer_cannot_use_the_same_coupon_twice()
+    {
+        var coupon = await AddCouponAsync();
+        await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+
+        Assert.Contains("already used", ex.Message);
+        Assert.Equal(1, await _test.Db.Orders.CountAsync());
+        Assert.Equal(1, await UsedCountAsync(coupon));
+    }
+
+    [Fact]
+    public async Task The_database_itself_refuses_a_second_redemption_by_the_same_customer()
+    {
+        // skips the friendly pre-check on purpose: this is what stops two simultaneous requests
+        var coupon = await AddCouponAsync();
+        var applied = new CouponApplication(coupon.Id, coupon.Code, 10m);
+
+        await _redeemer.RedeemAsync(applied, _customer, 1001);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _redeemer.RedeemAsync(applied, _customer, 1002));
+
+        Assert.Contains("already used", ex.Message);
+    }
+
+    [Fact]
+    public async Task Another_customer_can_still_use_a_coupon_that_one_customer_used()
+    {
+        await AddCouponAsync();
+        await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        var result = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), Guid.NewGuid());
+
+        Assert.Equal(80m, result.DiscountAmount);
+    }
+
+    [Fact]
+    public async Task Coupon_assigned_to_someone_else_is_rejected()
+    {
+        await AddCouponAsync(c => c.AssignedUserId = Guid.NewGuid());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+
+        Assert.Contains("not valid", ex.Message);
+    }
+
+    [Fact]
+    public async Task Assigned_coupon_works_for_the_assigned_customer()
+    {
+        await AddCouponAsync(c => c.AssignedUserId = _customer);
+
+        var result = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        Assert.Equal(80m, result.DiscountAmount);
+    }
+
+    [Fact]
+    public async Task Expired_coupon_is_rejected()
+    {
+        await AddCouponAsync();
+        _clock.Advance(TimeSpan.FromDays(2));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+
+        Assert.Contains("expired", ex.Message);
+    }
+
+    [Fact]
+    public async Task Coupon_that_has_not_started_yet_is_rejected()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        await AddCouponAsync(c => { c.ValidFromUtc = now.AddHours(1); c.ValidToUtc = now.AddDays(2); });
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+
+        Assert.Contains("not active yet", ex.Message);
+    }
+
+    [Fact]
+    public async Task Order_below_the_minimum_amount_is_rejected()
+    {
+        await AddCouponAsync();   // minimum 100, one coffee is 40
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.PlaceOrderAsync(
+            Request(_kadai.Id, (_coffee.Id, 1)) with { CouponCode = "SAVE20" }, _customer));
+
+        Assert.Contains("Minimum order", ex.Message);
+    }
+
+    [Fact]
+    public async Task Coupon_with_no_uses_left_is_rejected()
+    {
+        await AddCouponAsync(c => c.UsageLimit = 1);
+        await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), Guid.NewGuid()));
+
+        Assert.Contains("fully used", ex.Message);
+    }
+
+    [Fact]
+    public async Task Disabled_or_unknown_codes_give_the_same_message()
+    {
+        await AddCouponAsync(c => c.IsActive = false);
+
+        var disabled = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+        var unknown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "NOSUCHCODE"), _customer));
+
+        Assert.Equal(disabled.Message, unknown.Message);
+    }
+
+    [Fact]
+    public async Task A_failed_order_does_not_use_up_the_coupon()
+    {
+        var coupon = await AddCouponAsync();
+        await SetStockAsync(_biryani, 1);   // order asks for 2 -> stock fails
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer));
+
+        Assert.Equal(0, await UsedCountAsync(coupon));
+        Assert.Equal(0, await _test.Db.CouponRedemptions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Cancelling_an_order_gives_the_coupon_back()
+    {
+        var coupon = await AddCouponAsync();
+        var order = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+
+        await _sut.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null), _customer, Roles.Customer);
+
+        Assert.Equal(0, await UsedCountAsync(coupon));
+        Assert.Equal(0, await _test.Db.CouponRedemptions.CountAsync());
+
+        // and the customer can use it again
+        var again = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
+        Assert.Equal(80m, again.DiscountAmount);
     }
 
     // ---------------- UpdateStatusAsync ----------------

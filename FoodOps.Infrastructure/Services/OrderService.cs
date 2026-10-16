@@ -19,14 +19,16 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly IOrderNotifier _notifier;
     private readonly IStockService _stock;
+    private readonly ICouponRedeemer _coupons;
 
     public OrderService(
-  IUnitOfWork uow,
-  IEnumerable<IStatusTransitionRule> rules,
-  IOrderNotificationFactory notifications,
-  IOrderNotifier notifier,
-  ILogger<OrderService> logger,
-  IStockService stock)
+     IUnitOfWork uow,
+     IEnumerable<IStatusTransitionRule> rules,
+     IOrderNotificationFactory notifications,
+     IOrderNotifier notifier,
+     ILogger<OrderService> logger,
+     IStockService stock,
+     ICouponRedeemer coupons)
     {
         _uow = uow;
         _rules = rules;
@@ -34,9 +36,10 @@ public class OrderService : IOrderService
         _logger = logger;
         _notifier = notifier;
         _stock = stock;
+        _coupons = coupons;
     }
 
-    public async Task<OrderDto> PlaceOrderAsync(CreateOrderDto dto, Guid customerId)
+       public async Task<OrderDto> PlaceOrderAsync(CreateOrderDto dto, Guid customerId)
     {
         if (dto.Items == null || dto.Items.Count == 0)
             throw new InvalidOperationException("Order must have at least one item.");
@@ -73,12 +76,30 @@ public class OrderService : IOrderService
         foreach (var m in menu)
             order.Items.Add(new OrderItem { MenuItemId = m.Id, Quantity = requested[m.Id], Price = m.Price });
 
-        order.TotalAmount = order.Items.Sum(i => i.Price * i.Quantity);
+        var subtotal = order.Items.Sum(i => i.Price * i.Quantity);
+        order.TotalAmount = subtotal;
+
+        // read-only checks first: a bad coupon fails fast, before any stock is touched
+        CouponApplication? applied = null;
+        if (!string.IsNullOrWhiteSpace(dto.CouponCode))
+        {
+            applied = await _coupons.PrepareAsync(dto.CouponCode, customerId, subtotal);
+            order.DiscountAmount = applied.Discount;
+            order.CouponCode = applied.Code;
+            order.TotalAmount = subtotal - applied.Discount;
+        }
 
         await using var tx = await _uow.BeginTransactionAsync();
-        await _stock.ReserveAsync(requested);   
+
+        await _stock.ReserveAsync(requested);   // atomic; throws if not enough, tx rolls back
+
         await _uow.Orders.AddAsync(order);
         await _uow.SaveChangesAsync();   // Id generate aagum
+
+        // atomic claim; the unique index (CouponId, UserId) is the real "one use per customer" guard
+        if (applied is not null)
+            await _coupons.RedeemAsync(applied, customerId, order.Id);
+
         await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
         {
             OrderId = order.Id,
@@ -91,10 +112,9 @@ public class OrderService : IOrderService
 
         await tx.CommitAsync();
         await PublishAsync(order);
-        await _stock.PublishAsync(order.RestaurantId, requested.Keys);  
+        await _stock.PublishAsync(order.RestaurantId, requested.Keys);
 
         return await _uow.Orders.QueryNoTracking().Where(o => o.Id == order.Id).ProjectToDto().FirstAsync();
-
     }
 
     public async Task<List<OrderDto>> GetMyOrdersAsync(Guid customerId)
@@ -147,7 +167,10 @@ public class OrderService : IOrderService
         await _uow.SaveChangesAsync();
 
         if (giveStockBack)
-            released = await _stock.ReleaseAsync(order.Id);   // same transaction as the status change
+        {
+            released = await _stock.ReleaseAsync(order.Id);
+            await _coupons.ReleaseAsync(order.Id);        // the customer can use the coupon again
+        }
 
         await tx.CommitAsync();
         await PublishAsync(order);
