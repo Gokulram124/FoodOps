@@ -1,14 +1,30 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { API_URL } from './config';
-import { Order, OrderStatus, OrderStatusLog } from './models';
+import { CouponQuote, Order, OrderStatus, OrderStatusLog } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   private http = inject(HttpClient);
 
-  place(restaurantId: number, items: { menuItemId: number; quantity: number }[]) {
-    return this.http.post<Order>(`${API_URL}/orders`, { restaurantId, items });
+  place(
+    restaurantId: number,
+    items: { menuItemId: number; quantity: number }[],
+    couponCode?: string | null
+  ) {
+    return this.http.post<Order>(`${API_URL}/orders`, {
+      restaurantId,
+      items,
+      couponCode: couponCode || null,
+    });
+  }
+
+  validateCoupon(
+    restaurantId: number,
+    code: string,
+    items: { menuItemId: number; quantity: number }[]
+  ) {
+    return this.http.post<CouponQuote>(`${API_URL}/coupons/validate`, { restaurantId, code, items });
   }
 
   my() {
@@ -23,7 +39,7 @@ export class OrderService {
     return this.http.get<OrderStatusLog[]>(`${API_URL}/orders/${orderId}/timeline`);
   }
 
-    restaurantOrders() {
+  restaurantOrders() {
     return this.http.get<Order[]>(`${API_URL}/orders/restaurant`);
   }
 

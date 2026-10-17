@@ -60,6 +60,8 @@ export interface Order {
   orderTime: string;
   riderId: number | null;
   items: OrderItem[];
+  discountAmount?: number;
+couponCode?: string | null;
 }
 
 export interface OrderStatusLog {
@@ -176,4 +178,11 @@ export interface CustomerOption {
   id: string;
   fullName: string;
   email: string;
+}
+
+export interface CouponQuote {
+  code: string;
+  subtotal: number;
+  discount: number;
+  total: number;
 }
