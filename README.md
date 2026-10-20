@@ -1,4 +1,5 @@
 # FoodOps: Food Delivery Operations Platform
+[![CI](https://github.com/Gokulram124/FoodOps/actions/workflows/ci.yml/badge.svg)](https://github.com/Gokulram124/FoodOps/actions/workflows/ci.yml)
 
 A full-stack food delivery operations app with four role-based workflows (customer, restaurant owner, delivery rider, admin), built with **ASP.NET Core 8 Web API** (Clean Architecture) and **Angular 22**.
 
@@ -11,7 +12,7 @@ A full-stack food delivery operations app with four role-based workflows (custom
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | admin@foodops.com | Admin@123 |
+| Admin | admin@foodops.com | Admin@124 |
 | Restaurant owner | owner@foodops.com | Owner@123 |
 | Customer / Rider | Register a new account from the login page | |
 
