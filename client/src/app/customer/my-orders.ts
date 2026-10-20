@@ -47,8 +47,14 @@ import { RealtimeService } from '../core/realtime.service';
               </ul>
 
               <div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3 small">
-                <span class="fw-medium">{{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
-                <div class="d-flex gap-2">
+                <div>
+                  <span class="fw-medium">{{ o.totalAmount | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+                  @if (o.couponCode) {
+                    <div class="text-success" style="font-size: 0.75rem">
+                      {{ o.couponCode }} saved {{ o.discountAmount | currency: 'INR' : 'symbol' : '1.0-0' }}
+                    </div>
+                  }
+                </div>                <div class="d-flex gap-2">
                   <button (click)="toggle(o.id)" class="btn btn-sm btn-outline-secondary">
                     {{ openId() === o.id ? 'Hide timeline' : 'Timeline' }}
                   </button>

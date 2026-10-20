@@ -38,9 +38,56 @@ import { OrderService } from '../core/order.service';
           </div>
         </div>
 
-        <div class="d-flex align-items-center justify-content-between fs-5 fw-medium mt-3">
-          <span>Total</span>
-          <span>{{ cart.total() | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+        <!-- Coupon -->
+        <div class="card card-body mt-3 py-2">
+          @if (cart.coupon(); as c) {
+            <div class="d-flex align-items-center justify-content-between small">
+              <span class="text-success">
+                <strong>{{ c.code }}</strong> applied. You save
+                {{ c.discount | currency: 'INR' : 'symbol' : '1.0-0' }}
+              </span>
+              <button (click)="removeCoupon()" class="btn btn-sm btn-outline-secondary py-0 px-2">Remove</button>
+            </div>
+          } @else {
+            <div class="input-group input-group-sm">
+              <input
+                #code
+                type="text"
+                class="form-control text-uppercase"
+                placeholder="Have a coupon code?"
+                maxlength="30"
+                (keyup.enter)="applyCoupon(code.value)"
+              />
+              <button
+                class="btn btn-outline-primary"
+                type="button"
+                [disabled]="applying()"
+                (click)="applyCoupon(code.value)"
+              >
+                {{ applying() ? 'Checking...' : 'Apply' }}
+              </button>
+            </div>
+            @if (couponError()) {
+              <div class="text-danger small mt-2">{{ couponError() }}</div>
+            }
+          }
+        </div>
+
+        <div class="mt-3">
+          <div class="d-flex justify-content-between small text-body-secondary">
+            <span>Subtotal</span>
+            <span>{{ cart.total() | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+          </div>
+          @if (cart.discount() > 0) {
+            <div class="d-flex justify-content-between small text-success">
+              <span>Discount ({{ cart.coupon()?.code }})</span>
+              <span>-{{ cart.discount() | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+            </div>
+          }
+          <div class="d-flex align-items-center justify-content-between fs-5 fw-medium mt-1">
+            <span>To pay</span>
+            <span>{{ cart.payable() | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+          </div>
         </div>
 
         <button (click)="placeOrder()" [disabled]="placing()" class="btn btn-primary w-100 mt-4">
@@ -57,6 +104,41 @@ export class CartComponent {
 
   placing = signal(false);
   error = signal('');
+  applying = signal(false);
+  couponError = signal('');
+
+  private items() {
+    return this.cart.lines().map(l => ({ menuItemId: l.item.id, quantity: l.quantity }));
+  }
+
+  applyCoupon(raw: string) {
+    const restaurant = this.cart.restaurant();
+    const code = raw.trim();
+    if (!restaurant || this.cart.lines().length === 0) return;
+    if (!code) {
+      this.couponError.set('Enter a coupon code.');
+      return;
+    }
+
+    this.applying.set(true);
+    this.couponError.set('');
+
+    this.orders.validateCoupon(restaurant.id, code, this.items()).subscribe({
+      next: quote => {
+        this.cart.applyCoupon(quote);
+        this.applying.set(false);
+      },
+      error: err => {
+        this.couponError.set(err.error?.message ?? err.error?.detail ?? 'Could not apply this coupon.');
+        this.applying.set(false);
+      },
+    });
+  }
+
+  removeCoupon() {
+    this.cart.removeCoupon();
+    this.couponError.set('');
+  }
 
   placeOrder() {
     const restaurant = this.cart.restaurant();
@@ -65,14 +147,15 @@ export class CartComponent {
     this.placing.set(true);
     this.error.set('');
 
-    const items = this.cart.lines().map(l => ({ menuItemId: l.item.id, quantity: l.quantity }));
+    // the server re-checks the coupon at order time, so this is only the code, not the discount
+    const couponCode = this.cart.coupon()?.code ?? null;
 
-    this.orders.place(restaurant.id, items).subscribe({
+    this.orders.place(restaurant.id, this.items(), couponCode).subscribe({
       next: () => {
         this.cart.clear();
         this.router.navigate(['/orders']);
       },
-            error: err => {
+      error: err => {
         this.error.set(err.error?.detail ?? err.error?.message ?? 'Could not place the order. Please try again.');
         this.placing.set(false);
       },
