@@ -570,4 +570,54 @@ public class OrderServiceTests : IDisposable
 
         Assert.Equal(OrderStatus.Cancelled, result.Status);
     }
+    // ---------------- Concurrency ----------------
+
+    // Lets a "second request" win the race: it runs after UpdateStatusAsync has read the order
+    // but before it writes, and cancels the order directly in the database.
+    private sealed class RacingRule : IStatusTransitionRule
+    {
+        private readonly IStatusTransitionRule _inner;
+        private readonly Action _otherRequestWins;
+
+        public RacingRule(IStatusTransitionRule inner, Action otherRequestWins)
+        {
+            _inner = inner;
+            _otherRequestWins = otherRequestWins;
+        }
+
+        public bool AppliesTo(string role) => _inner.AppliesTo(role);
+
+        public void Validate(Order order, OrderStatus newStatus, Guid userId, string role)
+        {
+            _inner.Validate(order, newStatus, userId, role);
+            _otherRequestWins();
+        }
+    }
+
+    [Fact]
+    public async Task When_two_cancels_race_only_the_winner_changes_the_order_and_stock_is_released_once()
+    {
+        await SetStockAsync(_biryani, 12);
+        var order = await _sut.PlaceOrderAsync(Request(_kadai.Id, (_biryani.Id, 9)), _customer);   // stock is now 3
+
+        var racing = new OrderService(
+            new UnitOfWork(_test.Db),
+            new IStatusTransitionRule[]
+            {
+                new RacingRule(new CustomerCancelRule(), () =>
+                    _test.Db.Orders.Where(o => o.Id == order.Id)
+                        .ExecuteUpdate(s => s.SetProperty(o => o.Status, OrderStatus.Cancelled)))
+            },
+            Mock.Of<IOrderNotificationFactory>(),
+            _notifier.Object,
+            NullLogger<OrderService>.Instance,
+            new StockService(_test.Db, _notifier.Object, NullLogger<StockService>.Instance),
+            _redeemer);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => racing.UpdateStatusAsync(
+            new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null), _customer, Roles.Customer));
+
+        Assert.Equal(3, await StockOfAsync(_biryani));   // the loser did NOT give the stock back
+        Assert.Equal(1, await _test.Db.OrderStatusLogs.CountAsync(l => l.OrderId == order.Id));   // only "placed"
+    }
 }

@@ -135,7 +135,6 @@ CI runs the build and tests on every push. Deployment is manual: the API is publ
 ## Known limitations and planned improvements
 
 - SignalR hub groups are joined when a connection starts, so a restaurant created after a user connected gets live updates only after that user reconnects.
-- Two simultaneous cancel requests for the same order could release stock twice. This could be hardened with an atomic `UPDATE ... WHERE Status = @old`.
 - Revenue reports group in memory; for large data this should move to SQL.
 - Rider screens still poll instead of using SignalR.
 - The rider page does not remember its online status after a page refresh.

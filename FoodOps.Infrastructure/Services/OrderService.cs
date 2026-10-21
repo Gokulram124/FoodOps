@@ -155,7 +155,14 @@ public class OrderService : IOrderService
 
         await using var tx = await _uow.BeginTransactionAsync();
 
-        order.Status = dto.NewStatus;
+        
+        var claimed = await _uow.Orders.Query()
+            .Where(o => o.Id == order.Id && o.Status == old)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, dto.NewStatus));
+        if (claimed == 0)
+            throw new InvalidOperationException("This order was just updated by someone else. Please refresh and try again.");
+
+        order.Status = dto.NewStatus;   
         await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
         {
             OrderId = order.Id,
