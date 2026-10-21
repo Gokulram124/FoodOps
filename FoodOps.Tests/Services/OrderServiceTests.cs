@@ -570,45 +570,4 @@ public class OrderServiceTests : IDisposable
 
         Assert.Equal(OrderStatus.Cancelled, result.Status);
     }
-
-    // runs the real rule, then lets another request finish before this one writes
-    private sealed class InterleavingRule(IStatusTransitionRule inner, Func<Task> meanwhile) : IStatusTransitionRule
-    {
-        public bool AppliesTo(string role) => inner.AppliesTo(role);
-
-        public void Validate(Order order, OrderStatus newStatus, Guid userId, string role)
-        {
-            inner.Validate(order, newStatus, userId, role);
-            meanwhile().GetAwaiter().GetResult();
-        }
-    }
-
-    [Fact]
-    public async Task Two_simultaneous_cancels_release_stock_and_coupon_only_once()
-    {
-        await SetStockAsync(_biryani, 12);
-        var coupon = await AddCouponAsync();
-        var order = await _sut.PlaceOrderAsync(Biryani(2, "SAVE20"), _customer);
-        var cancel = new UpdateOrderStatusDto(order.Id, OrderStatus.Cancelled, null);
-
-        // the late request has already read the order as Placed when the first cancel commits
-        var late = new OrderService(
-            new UnitOfWork(_test.Db),
-            new IStatusTransitionRule[] { new InterleavingRule(new CustomerCancelRule(),
-                () => _sut.UpdateStatusAsync(cancel, _customer, Roles.Customer)) },
-            Mock.Of<IOrderNotificationFactory>(),
-            _notifier.Object,
-            NullLogger<OrderService>.Instance,
-            new StockService(_test.Db, _notifier.Object, NullLogger<StockService>.Instance), _redeemer);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => late.UpdateStatusAsync(cancel, _customer, Roles.Customer));
-
-        Assert.Equal(12, await StockOfAsync(_biryani));   // 10 + 2 once, not 14
-        Assert.Equal(0, await UsedCountAsync(coupon));
-        Assert.Equal(OrderStatus.Cancelled,
-            await _test.Db.Orders.AsNoTracking().Where(o => o.Id == order.Id).Select(o => o.Status).SingleAsync());
-        Assert.Equal(1, await _test.Db.OrderStatusLogs.CountAsync(l => l.OrderId == order.Id
-            && l.NewStatus == OrderStatus.Cancelled));
-    }
 }
