@@ -139,7 +139,8 @@ public class OrderService : IOrderService
 
     public async Task<OrderDto> UpdateStatusAsync(UpdateOrderStatusDto dto, Guid userId, string role)
     {
-        var order = await _uow.Orders.Query().Include(o => o.Restaurant)
+        // not tracked: the status is written below by a conditional UPDATE, never by SaveChanges
+        var order = await _uow.Orders.QueryNoTracking().Include(o => o.Restaurant)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId)
             ?? throw new NotFoundException("Order not found.");
 
@@ -154,6 +155,14 @@ public class OrderService : IOrderService
         IReadOnlyList<int> released = Array.Empty<int>();
 
         await using var tx = await _uow.BeginTransactionAsync();
+
+        // UPDATE ... WHERE Status = @old: if two requests race, only one changes the row,
+        // so stock and coupon are released exactly once
+        var changed = await _uow.Orders.Query()
+            .Where(o => o.Id == order.Id && o.Status == old)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, dto.NewStatus));
+        if (changed != 1)
+            throw new InvalidOperationException("Order status was changed by someone else. Please refresh and try again.");
 
         order.Status = dto.NewStatus;
         await _uow.OrderStatusLogs.AddAsync(new OrderStatusLog
