@@ -55,4 +55,11 @@ public class AnalyticsController : ControllerBase
 
         return Ok(await _analytics.GetRestaurantPerformanceAsync(fromUtc, toUtc, ct));
     }
+
+    [HttpGet("orders/{orderId:int}")]
+    public async Task<ActionResult<OrderReportDto>> OrderReport(int orderId, CancellationToken ct)
+    {
+        var report = await _analytics.GetOrderReportAsync(orderId, ct);
+        return report is null ? NotFound(new { message = "Order not found." }) : Ok(report);
+    }
 }

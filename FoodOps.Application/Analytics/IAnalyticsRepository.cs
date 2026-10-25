@@ -8,4 +8,6 @@ public interface IAnalyticsRepository
 
     Task<IReadOnlyList<RestaurantPerformanceDto>> GetRestaurantPerformanceAsync(
     DateTime fromUtc, DateTime toUtc, CancellationToken ct);
+
+    Task<OrderReportDto?> GetOrderReportAsync(int orderId, CancellationToken ct);
 }

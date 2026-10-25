@@ -107,4 +107,42 @@ public class AnalyticsRepository : IAnalyticsRepository
 
         return rows.ToList();
     }
+
+    public async Task<OrderReportDto?> GetOrderReportAsync(int orderId, CancellationToken ct)
+    {
+        const string sql = """
+        SELECT o.Id, r.Name AS RestaurantName, o.Status, o.OrderTime,
+               o.TotalAmount, o.DiscountAmount, o.CouponCode,
+               oi.Id AS LineId, mi.Id AS MenuItemId, mi.Name AS ItemName,
+               oi.Quantity, oi.Price
+        FROM Orders o
+        INNER JOIN Restaurants r ON r.Id  = o.RestaurantId
+        INNER JOIN OrderItems oi ON oi.OrderId = o.Id
+        INNER JOIN MenuItems mi  ON mi.Id = oi.MenuItemId
+        WHERE o.Id = @OrderId
+        ORDER BY oi.Id;
+        """;
+
+        ct.ThrowIfCancellationRequested();
+        using var connection = _factory.CreateConnection();
+
+        var orders = new Dictionary<int, OrderReportDto>();
+
+        await connection.QueryAsync<OrderReportDto, OrderReportLineDto, OrderReportDto>(
+            sql,
+            (order, line) =>
+            {
+                if (!orders.TryGetValue(order.Id, out var existing))
+                {
+                    existing = order;
+                    orders.Add(order.Id, existing);
+                }
+                existing.Items.Add(line);
+                return existing;
+            },
+            new { OrderId = orderId },
+            splitOn: "LineId");
+
+        return orders.Values.FirstOrDefault();
+    }
 }
