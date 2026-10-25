@@ -1,0 +1,110 @@
+using Dapper;
+using FoodOps.Application.Abstractions;
+using FoodOps.Application.Analytics;
+using FoodOps.Domain.Enums;
+using System.Data;
+
+namespace FoodOps.Infrastructure.Analytics;
+
+public class AnalyticsRepository : IAnalyticsRepository
+{
+    private readonly IDbConnectionFactory _factory;
+
+    public AnalyticsRepository(IDbConnectionFactory factory) => _factory = factory;
+
+    public async Task<IReadOnlyList<TopItemDto>> GetTopItemsAsync(int restaurantId, int take, CancellationToken ct)
+    {
+        const string sql = """
+        SELECT TOP (@Take)
+               mi.Id                           AS MenuItemId,
+               mi.Name                         AS Name,
+               SUM(oi.Quantity)                AS TotalQuantity,
+               SUM(oi.Quantity * oi.Price)     AS Revenue
+        FROM OrderItems oi
+        INNER JOIN Orders    o  ON o.Id  = oi.OrderId
+        INNER JOIN MenuItems mi ON mi.Id = oi.MenuItemId
+        WHERE o.RestaurantId = @RestaurantId
+          AND o.Status NOT IN @Excluded
+        GROUP BY mi.Id, mi.Name
+        ORDER BY TotalQuantity DESC;
+        """;
+
+        var excluded = new[] { (int)OrderStatus.Cancelled, (int)OrderStatus.Rejected };
+
+        using var connection = _factory.CreateConnection();
+
+        var rows = await connection.QueryAsync<TopItemDto>(
+            new CommandDefinition(
+                sql,
+                new { RestaurantId = restaurantId, Take = take, Excluded = excluded },
+                cancellationToken: ct));
+
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<RevenueTrendPointDto>> GetRevenueTrendAsync(
+    DateTime fromUtc, DateTime toUtc, string granularity, int tzOffsetMinutes, CancellationToken ct)
+    {
+        using var connection = _factory.CreateConnection();
+
+        var rows = await connection.QueryAsync<RevenueTrendPointDto>(
+            new CommandDefinition(
+                "dbo.usp_GetRevenueTrend",
+                new
+                {
+                    FromUtc = fromUtc,
+                    ToUtc = toUtc,
+                    Granularity = granularity,
+                    TzOffsetMinutes = tzOffsetMinutes,
+                    Cancelled = (int)OrderStatus.Cancelled,
+                    Rejected = (int)OrderStatus.Rejected
+                },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: ct));
+
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<RestaurantPerformanceDto>> GetRestaurantPerformanceAsync(
+    DateTime fromUtc, DateTime toUtc, CancellationToken ct)
+    {
+        const string sql = """
+        SELECT r.Id   AS RestaurantId,
+               r.Name AS Name,
+               COUNT(o.Id) AS TotalOrders,
+               COALESCE(SUM(CASE WHEN o.Status IN (@Cancelled, @Rejected) THEN 1 ELSE 0 END), 0)
+                   AS CancelledOrders,
+               COALESCE(CAST(100.0 *
+                   SUM(CASE WHEN o.Status IN (@Cancelled, @Rejected) THEN 1 ELSE 0 END)
+                   / NULLIF(COUNT(o.Id), 0) AS decimal(5,2)), 0)
+                   AS CancelRatePercent,
+               COALESCE(SUM(CASE WHEN o.Status NOT IN (@Cancelled, @Rejected)
+                                 THEN o.TotalAmount END), 0) AS Revenue,
+               COALESCE(AVG(CASE WHEN o.Status NOT IN (@Cancelled, @Rejected)
+                                 THEN o.TotalAmount END), 0) AS AvgOrderValue
+        FROM Restaurants r
+        LEFT JOIN Orders o
+               ON o.RestaurantId = r.Id
+              AND o.OrderTime >= @FromUtc
+              AND o.OrderTime <  @ToUtc
+        GROUP BY r.Id, r.Name
+        ORDER BY Revenue DESC;
+        """;
+
+        using var connection = _factory.CreateConnection();
+
+        var rows = await connection.QueryAsync<RestaurantPerformanceDto>(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    FromUtc = fromUtc,
+                    ToUtc = toUtc,
+                    Cancelled = (int)OrderStatus.Cancelled,
+                    Rejected = (int)OrderStatus.Rejected
+                },
+                cancellationToken: ct));
+
+        return rows.ToList();
+    }
+}

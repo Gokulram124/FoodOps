@@ -5,12 +5,16 @@ using FoodOps.API;
 using FoodOps.API.Filters;
 using FoodOps.API.Hubs;
 using FoodOps.API.Workers;
+using FoodOps.Application.Abstractions;
+using FoodOps.Application.Analytics;
 using FoodOps.Application.DelayRules;
 using FoodOps.Application.Interfaces;
 using FoodOps.Application.Notifications;
 using FoodOps.Application.Operations;
 using FoodOps.Application.Validators;
 using FoodOps.Infrastructure;
+using FoodOps.Infrastructure.Analytics;
+using FoodOps.Infrastructure.Data;
 using FoodOps.Infrastructure.Persistence;
 using FoodOps.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,7 +27,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console()
     .WriteTo.File("logs/foodops-.log", rollingInterval: RollingInterval.Day));
-
+builder.Services.AddScoped<IDbConnectionFactory, SqlConnectionFactory>();
+builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddMemoryCache();
 builder.Services.AddDistributedMemoryCache();   // later: swap to Redis, same IDistributedCache interface
 builder.Services.AddResponseCaching();
