@@ -12,8 +12,8 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.69" />
     <PackageReference Include="xunit" Version="2.5.3" />
@@ -24,6 +24,7 @@
     <ProjectReference Include="..\FoodOps.Application\FoodOps.Application.csproj" />
     <ProjectReference Include="..\FoodOps.Domain\FoodOps.Domain.csproj" />
     <ProjectReference Include="..\FoodOps.Infrastructure\FoodOps.Infrastructure.csproj" />
+	<ProjectReference Include="..\FoodOps.API\FoodOps.API.csproj" />
   </ItemGroup>
 
   <ItemGroup>
