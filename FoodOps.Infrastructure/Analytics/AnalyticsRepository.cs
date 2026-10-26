@@ -145,4 +145,65 @@ public class AnalyticsRepository : IAnalyticsRepository
 
         return orders.Values.FirstOrDefault();
     }
+
+    public async Task<AnalyticsDashboardDto> GetDashboardAsync(
+    DateTime fromUtc, DateTime toUtc, CancellationToken ct)
+    {
+        const string sql = """
+        -- 1) Summary
+        SELECT COUNT(*) AS TotalOrders,
+               COALESCE(SUM(CASE WHEN Status IN (@Cancelled, @Rejected) THEN 1 ELSE 0 END), 0)
+                   AS CancelledOrders,
+               COALESCE(SUM(CASE WHEN Status NOT IN (@Cancelled, @Rejected) THEN TotalAmount END), 0)
+                   AS Revenue,
+               COALESCE(AVG(CASE WHEN Status NOT IN (@Cancelled, @Rejected) THEN TotalAmount END), 0)
+                   AS AvgOrderValue
+        FROM Orders
+        WHERE OrderTime >= @FromUtc AND OrderTime < @ToUtc;
+
+        -- 2) Top 3 restaurants by revenue
+        SELECT TOP (3)
+               r.Id AS RestaurantId, r.Name AS Name,
+               COUNT(*) AS Orders, SUM(o.TotalAmount) AS Revenue
+        FROM Orders o
+        INNER JOIN Restaurants r ON r.Id = o.RestaurantId
+        WHERE o.OrderTime >= @FromUtc AND o.OrderTime < @ToUtc
+          AND o.Status NOT IN (@Cancelled, @Rejected)
+        GROUP BY r.Id, r.Name
+        ORDER BY Revenue DESC;
+
+        -- 3) Orders per status
+        SELECT Status, COUNT(*) AS Orders
+        FROM Orders
+        WHERE OrderTime >= @FromUtc AND OrderTime < @ToUtc
+        GROUP BY Status
+        ORDER BY Status;
+        """;
+
+        using var connection = _factory.CreateConnection();
+
+        using var grid = await connection.QueryMultipleAsync(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    FromUtc = fromUtc,
+                    ToUtc = toUtc,
+                    Cancelled = (int)OrderStatus.Cancelled,
+                    Rejected = (int)OrderStatus.Rejected
+                },
+                cancellationToken: ct));
+
+        // Read in the SAME order as the SELECT statements above.
+        var summary = await grid.ReadSingleAsync<DashboardSummaryDto>();
+        var top = (await grid.ReadAsync<DashboardTopRestaurantDto>()).ToList();
+        var statuses = (await grid.ReadAsync<DashboardStatusCountDto>()).ToList();
+
+        return new AnalyticsDashboardDto
+        {
+            Summary = summary,
+            TopRestaurants = top,
+            StatusBreakdown = statuses
+        };
+    }
 }

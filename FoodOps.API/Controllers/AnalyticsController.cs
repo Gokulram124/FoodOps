@@ -62,4 +62,16 @@ public class AnalyticsController : ControllerBase
         var report = await _analytics.GetOrderReportAsync(orderId, ct);
         return report is null ? NotFound(new { message = "Order not found." }) : Ok(report);
     }
+
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<AnalyticsDashboardDto>> Dashboard(
+    [FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct = default)
+    {
+        var toUtc = to ?? DateTime.UtcNow;
+        var fromUtc = from ?? toUtc.AddDays(-30);
+        if (fromUtc >= toUtc)
+            return BadRequest(new { message = "'from' must be earlier than 'to'." });
+
+        return Ok(await _analytics.GetDashboardAsync(fromUtc, toUtc, ct));
+    }
 }

@@ -10,4 +10,6 @@ public interface IAnalyticsRepository
     DateTime fromUtc, DateTime toUtc, CancellationToken ct);
 
     Task<OrderReportDto?> GetOrderReportAsync(int orderId, CancellationToken ct);
+
+    Task<AnalyticsDashboardDto> GetDashboardAsync(DateTime fromUtc, DateTime toUtc, CancellationToken ct);
 }
