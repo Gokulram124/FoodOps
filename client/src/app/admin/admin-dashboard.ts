@@ -5,12 +5,12 @@ import { EMPTY, catchError, switchMap, timer } from 'rxjs';
 import { AdminService } from '../core/admin.service';
 import { AdminStats } from '../core/models';
 import { badgeClass } from '../core/status';
-
+import { LoaderComponent } from '../shared/loader';
 const SLA_MINUTES = 45;
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 1024px">
       <div class="d-flex align-items-center justify-content-between mb-4">
@@ -124,7 +124,7 @@ const SLA_MINUTES = 45;
           }
         </section>
       } @else if (!error()) {
-        <p class="text-body-secondary">Loading dashboard...</p>
+        <<app-loader message="Cooking up the dashboard..." />
       }
     </div>
   `,

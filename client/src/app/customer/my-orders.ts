@@ -7,10 +7,10 @@ import { Order, OrderStatusLog } from '../core/models';
 import { OrderService } from '../core/order.service';
 import { toDate } from '../core/utc';
 import { RealtimeService } from '../core/realtime.service';
-
+import { LoaderComponent } from '../shared/loader';
 @Component({
   selector: 'app-my-orders',
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 768px">
       <div class="d-flex align-items-center justify-content-between mb-4">
@@ -25,7 +25,7 @@ import { RealtimeService } from '../core/realtime.service';
       }
 
       @if (loading()) {
-        <p class="text-body-secondary">Loading orders...</p>
+        <app-loader message="Checking your orders..." />
       } @else if (orders().length === 0) {
         <p class="text-body-secondary">You have not placed any orders yet.</p>
       } @else {

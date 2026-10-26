@@ -9,16 +9,16 @@ import { MenuService } from '../core/menu.service';
 import { MenuItem, Restaurant } from '../core/models';
 import { RestaurantService } from '../core/restaurant.service';
 import { RealtimeService } from '../core/realtime.service';
-
+import { LoaderComponent } from '../shared/loader';
 @Component({
   selector: 'app-menu',
-  imports: [RouterLink, CurrencyPipe],
+  imports: [RouterLink, CurrencyPipe,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 1024px">
       <a routerLink="/restaurants" class="small">Back to restaurants</a>
 
       @if (loading()) {
-        <p class="mt-4 text-body-secondary">Loading menu...</p>
+        <app-loader message="Loading the menu..." />
       } @else if (error()) {
         <div class="alert alert-danger py-2 small mt-4">{{ error() }}</div>
       } @else if (restaurant(); as r) {

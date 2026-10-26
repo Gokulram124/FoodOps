@@ -42,6 +42,11 @@ export const routes: Routes = [
     loadComponent: () => import('./admin/admin-coupons').then(m => m.AdminCouponsComponent),
   },
   {
+    path: 'admin/analytics',
+    canActivate: [roleGuard('Admin')],
+   loadComponent: () => import('./admin/admin-analytics').then(m => m.AdminAnalyticsComponent),
+  },
+  {
     path: 'orders',
     canActivate: [roleGuard('Customer')],
     loadComponent: () => import('./customer/my-orders').then(m => m.MyOrdersComponent),

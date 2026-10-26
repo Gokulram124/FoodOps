@@ -7,6 +7,7 @@ import { OrderService } from '../core/order.service';
 import { badgeClass } from '../core/status';
 import { toDate } from '../core/utc';
 import { RealtimeService } from '../core/realtime.service';
+import { LoaderComponent } from '../shared/loader';
 
 interface Action {
   label: string;
@@ -28,7 +29,7 @@ const IN_PROGRESS: OrderStatus[] = ['Placed', 'Accepted', 'Preparing', 'ReadyFor
 
 @Component({
   selector: 'app-owner-orders',
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 896px">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -47,7 +48,7 @@ const IN_PROGRESS: OrderStatus[] = ['Placed', 'Accepted', 'Preparing', 'ReadyFor
       }
 
       @if (loading()) {
-        <p class="text-body-secondary">Loading orders...</p>
+        <app-loader message="Loading kitchen orders..." />
       } @else if (visible().length === 0) {
         <p class="text-body-secondary">No orders here yet. New orders appear automatically.</p>
       } @else {

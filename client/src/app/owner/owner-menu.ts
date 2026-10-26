@@ -7,13 +7,13 @@ import { MenuService } from '../core/menu.service';
 import { MenuItem, Restaurant } from '../core/models';
 import { RestaurantService } from '../core/restaurant.service';
 import { RealtimeService } from '../core/realtime.service';
-
+import { LoaderComponent } from '../shared/loader';
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 2 * 1024 * 1024;
 
 @Component({
   selector: 'app-owner-menu',
-  imports: [ReactiveFormsModule, CurrencyPipe],
+  imports: [ReactiveFormsModule, CurrencyPipe,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 1024px">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -37,7 +37,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
       }
 
       @if (loading()) {
-        <p class="text-body-secondary">Loading...</p>
+        <app-loader message="Loading the menu..." />
       } @else if (restaurantId() === null) {
         <p class="text-body-secondary">No restaurant is linked to your account.</p>
       } @else {

@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../core/admin.service';
 import { OwnerSummary } from '../core/models';
-
 @Component({
   selector: 'app-admin-owners',
   imports: [ReactiveFormsModule],

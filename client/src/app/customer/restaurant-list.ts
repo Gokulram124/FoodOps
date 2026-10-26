@@ -5,10 +5,10 @@ import { RouterLink } from '@angular/router';
 import { Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { Restaurant } from '../core/models';
 import { RestaurantService } from '../core/restaurant.service';
-
+import { LoaderComponent } from '../shared/loader';
 @Component({
   selector: 'app-restaurant-list',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink,LoaderComponent],
   template: `
     <div class="mx-auto px-3 px-md-4 py-4" style="max-width: 1024px">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -21,7 +21,7 @@ import { RestaurantService } from '../core/restaurant.service';
       }
 
       @if (loading()) {
-        <p class="text-body-secondary">Loading restaurants...</p>
+        <app-loader message="Fetching restaurants..." />
       } @else if (restaurants().length === 0 && !error()) {
         <p class="text-body-secondary">No restaurants match your search. Try a different name.</p>
       } @else {
