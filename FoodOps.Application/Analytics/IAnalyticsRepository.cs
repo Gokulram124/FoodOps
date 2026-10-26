@@ -12,4 +12,7 @@ public interface IAnalyticsRepository
     Task<OrderReportDto?> GetOrderReportAsync(int orderId, CancellationToken ct);
 
     Task<AnalyticsDashboardDto> GetDashboardAsync(DateTime fromUtc, DateTime toUtc, CancellationToken ct);
+
+    Task<IReadOnlyList<RestaurantLeaderboardRowDto>> GetLeaderboardAsync(
+    DateTime fromUtc, DateTime toUtc, CancellationToken ct);
 }

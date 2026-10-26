@@ -206,4 +206,47 @@ public class AnalyticsRepository : IAnalyticsRepository
             StatusBreakdown = statuses
         };
     }
+
+    public async Task<IReadOnlyList<RestaurantLeaderboardRowDto>> GetLeaderboardAsync(
+    DateTime fromUtc, DateTime toUtc, CancellationToken ct)
+    {
+        const string sql = """
+        WITH Agg AS (
+            SELECT r.Id AS RestaurantId, r.Name AS Name, r.City AS City,
+                   COUNT(o.Id) AS Orders,
+                   COALESCE(SUM(o.TotalAmount), 0) AS Revenue
+            FROM Restaurants r
+            LEFT JOIN Orders o
+                   ON o.RestaurantId = r.Id
+                  AND o.OrderTime >= @FromUtc
+                  AND o.OrderTime <  @ToUtc
+                  AND o.Status NOT IN (@Cancelled, @Rejected)
+            GROUP BY r.Id, r.Name, r.City
+        )
+        SELECT RestaurantId, Name, City, Orders, Revenue,
+               CAST(RANK() OVER (ORDER BY Revenue DESC) AS int)                    AS OverallRank,
+               CAST(RANK() OVER (PARTITION BY City ORDER BY Revenue DESC) AS int)  AS CityRank,
+               CAST(CASE WHEN SUM(Revenue) OVER () = 0 THEN 0
+                         ELSE 100.0 * Revenue / SUM(Revenue) OVER () END
+                    AS decimal(5,2))                                               AS SharePercent
+        FROM Agg
+        ORDER BY OverallRank, Name;
+        """;
+
+        using var connection = _factory.CreateConnection();
+
+        var rows = await connection.QueryAsync<RestaurantLeaderboardRowDto>(
+            new CommandDefinition(
+                sql,
+                new
+                {
+                    FromUtc = fromUtc,
+                    ToUtc = toUtc,
+                    Cancelled = (int)OrderStatus.Cancelled,
+                    Rejected = (int)OrderStatus.Rejected
+                },
+                cancellationToken: ct));
+
+        return rows.ToList();
+    }
 }

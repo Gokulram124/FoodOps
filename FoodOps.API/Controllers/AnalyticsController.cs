@@ -74,4 +74,16 @@ public class AnalyticsController : ControllerBase
 
         return Ok(await _analytics.GetDashboardAsync(fromUtc, toUtc, ct));
     }
+
+    [HttpGet("leaderboard")]
+    public async Task<ActionResult<IReadOnlyList<RestaurantLeaderboardRowDto>>> Leaderboard(
+    [FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct = default)
+    {
+        var toUtc = to ?? DateTime.UtcNow;
+        var fromUtc = from ?? toUtc.AddDays(-30);
+        if (fromUtc >= toUtc)
+            return BadRequest(new { message = "'from' must be earlier than 'to'." });
+
+        return Ok(await _analytics.GetLeaderboardAsync(fromUtc, toUtc, ct));
+    }
 }
