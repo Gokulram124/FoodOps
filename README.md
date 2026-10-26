@@ -51,6 +51,7 @@ Try the coupon **WELCOME20** at checkout (20% off, up to â‚¹100, minimum order â
 - Dashboard with platform statistics
 - Creates restaurant owners and restaurants
 - Revenue reports by day, week, month or year, with Excel export
+- Analytics page (Dapper): KPI cards, revenue per day, top restaurants, order status breakdown and a restaurant leaderboard for the last 7, 30 or 90 days
 - Creates, lists and disables coupons (percent or flat, minimum order, validity window, usage limit, optionally assigned to one customer)
 
 **Platform**
@@ -67,13 +68,13 @@ Try the coupon **WELCOME20** at checkout (20% off, up to â‚¹100, minimum order â
 |---|---|
 | API | ASP.NET Core 8 Web API, C# |
 | Architecture | Clean Architecture (API / Application / Domain / Infrastructure), Unit of Work, strategy pattern |
-| Data | Entity Framework Core 8, SQL Server |
+| Data | Entity Framework Core 8 for writes, Dapper for read-only analytics, SQL Server |
 | Auth | ASP.NET Core Identity, JWT bearer tokens, refresh tokens |
 | Real-time | SignalR |
 | Reports | ClosedXML (Excel export) |
 | Frontend | Angular 22 (standalone components, signals, reactive forms, lazy-loaded routes), RxJS |
 | Styling | Bootstrap 5.3 |
-| Testing | xUnit, Moq, SQLite in-memory (80 tests) |
+| Testing | xUnit, Moq, SQLite in-memory (100 tests) |
 | CI | GitHub Actions (build and tests on every push) |
 | Hosting | Netlify (frontend), MonsterASP.NET (API and SQL Server) |
 
@@ -85,7 +86,7 @@ Angular (Netlify)  --HTTPS/JSON + SignalR-->  ASP.NET Core API (MonsterASP)  -->
 FoodOps.API             Controllers, middleware, SignalR hubs, DI, Swagger
 FoodOps.Application     DTOs, service interfaces, business rules, discount strategies
 FoodOps.Domain          Entities and enums (no dependencies)
-FoodOps.Infrastructure  EF Core DbContext, migrations, Identity, service implementations, seeding
+FoodOps.Infrastructure  EF Core DbContext, migrations, Identity, Dapper analytics repository, service implementations, seeding
 FoodOps.Tests           xUnit tests for services and rules
 ```
 
@@ -96,7 +97,27 @@ Design decisions worth noting:
 - **Stock and coupons are concurrency-safe.** Stock is reserved with a single atomic statement (`Stock = Stock - qty WHERE Stock >= qty`), so two customers cannot buy the last item. A coupon's usage count is incremented atomically, and a unique index on `(CouponId, UserId)` is the real "one use per customer" guard. Order, stock and coupon changes happen in one transaction and roll back together on any failure.
 - Cancelling or rejecting an order releases its stock and coupon use. Releases are idempotent.
 - Real-time pushes happen after the transaction commits and are best effort, so a SignalR problem can never fail an order.
+- **EF Core for writes, Dapper for reads.** Writes (orders, stock, coupons) go through EF Core so change tracking, transactions and migrations apply. Read-only analytics use Dapper with hand-written, parameterized SQL, which makes aggregates and window functions explicit and avoids tracking overhead. A small `IDbConnectionFactory` supplies connections, and the repository interface lives in the Application layer.
 - CORS origins and secrets come from configuration; production secrets are not stored in the repository.
+
+## Analytics module (Dapper)
+
+Read-only endpoints for admins, built with Dapper and parameterized SQL. All routes are under `/api/v1/analytics` and require the Admin role.
+
+| Endpoint | What it returns | Dapper features |
+|---|---|---|
+| `GET restaurants/{id}/top-items?take=` | Best-selling items of a restaurant (`take` is limited to 1 to 50) | `QueryAsync<T>`, parameters |
+| `GET revenue-trend?from=&to=&granularity=&tzOffsetMinutes=` | Revenue and order count per day, week or month in the user's time zone | Stored procedure (`usp_GetRevenueTrend`), `CommandType.StoredProcedure` |
+| `GET restaurant-performance?from=&to=` | Orders, revenue and average order value per restaurant | Conditional aggregation, `LEFT JOIN` |
+| `GET orders/{orderId}` | One order with its line items | Multi-mapping (one-to-many) |
+| `GET dashboard?from=&to=` | Summary, top restaurants and status counts in one round trip | `QueryMultipleAsync` |
+| `GET leaderboard?from=&to=` | Restaurants ranked by revenue | Window functions (`RANK`, `SUM() OVER`) |
+
+Notes:
+- `from` and `to` are optional UTC dates and default to the last 30 days; `from` must be earlier than `to`.
+- The revenue-trend stored procedure is not created by EF migrations. Run `FoodOps.Infrastructure/Sql/usp_GetRevenueTrend.sql` once on each database before using that endpoint.
+- Cancelled and rejected orders are excluded from revenue.
+- Controller and repository mapping are unit tested; the SQL itself is not run in CI because the tests use SQLite, which does not support stored procedures or all window functions.
 
 ## API overview
 
@@ -130,15 +151,15 @@ dotnet test FoodOps.slnx
 
 ## Deployment
 
-CI runs the build and tests on every push. Deployment is manual: the API is published with Web Deploy and the Angular build is uploaded to Netlify. Database migrations run automatically when the API starts.
+CI runs the build and tests on every push. Deployment is manual: the API is published with Web Deploy and the Angular build is uploaded to Netlify. Database migrations run automatically when the API starts. The analytics stored procedure is deployed manually (see the Analytics section).
 
 ## Known limitations and planned improvements
 
 - SignalR hub groups are joined when a connection starts, so a restaurant created after a user connected gets live updates only after that user reconnects.
-- Revenue reports group in memory; for large data this should move to SQL.
+- The Excel revenue report groups in memory; for large data it should use the Dapper/SQL approach already used by the analytics module.
 - Rider screens still poll instead of using SignalR.
 - The rider page does not remember its online status after a page refresh.
-- Planned: time-bound offers, customer reviews with owner insights, forgot-password by email, caching, background jobs, Docker, automated deployment.
+- Planned: time-bound offers, customer reviews with owner insights, forgot-password by email, Docker, automated deployment.
 
 ## Author
 
